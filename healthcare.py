@@ -418,35 +418,78 @@ class HealthcareSystem:
         else:
             messagebox.showerror("Error", "Current password is incorrect")
 
-    # def check_appointment_reminders(self):
-    #     cursor = self.conn.cursor()
-    #     tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-    #     if self.current_role == "doctor":
-    #         cursor.execute("SELECT patient_id, date, time FROM appointments WHERE date = ? AND status = 'Scheduled' AND doctor_id = ?",      # noqa
-    #                         (tomorrow, self.current_user_id)) # noqa
-    #     else:
-    #         cursor.execute("SELECT patient_id, date, time, doctor_id FROM appointments WHERE date = ? AND status = 'Scheduled'", # noqa
-    #                         (tomorrow,)) # noqa
-    #     appointments = cursor.fetchall()
-    #     if appointments:
-    #         reminder = "\n".join([f"Reminder: Patient ID {row[0]} at {row[2]} on {row[1]}"  # noqa
-    #                             for row in appointments]) # noqa
-    #         messagebox.showinfo("Appointment Reminders", reminder)
-    
     def check_appointment_reminders(self):
-        cursor = self.conn.cursor()
-        tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-        if self.current_role == "doctor":
-            cursor.execute("SELECT patient_id, date, time FROM appointments WHERE date = ? AND status = 'Scheduled' AND doctor_id = ?",      # noqa
-                            (tomorrow, self.current_user_id)) # noqa
-        else:
-            cursor.execute("SELECT patient_id, date, time, doctor_id FROM appointments WHERE date = ? AND status = 'Scheduled'", # noqa
-                            (tomorrow,)) # noqa
-        appointments = cursor.fetchall()
-        if appointments:
-            reminder = "\n".join([f"Reminder: Patient ID {row[0]} at {row[2]} on {row[1]}"  # noqa
-                                for row in appointments]) # noqa
-            messagebox.showinfo("Appointment Reminders", reminder)
+        """Check for upcoming
+        appointments for tomorrow and display reminders."""
+        try:
+            cursor = self.conn.cursor()
+            tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+            
+            # Initialize message list
+            reminders = []
+            
+            if self.current_role == "doctor":
+                # For doctors, show only their appointments
+                cursor.execute("""
+                    SELECT a.id, p.name, a.date, a.time 
+                    FROM appointments a 
+                    JOIN patients p ON a.patient_id = p.id 
+                    WHERE a.date = ? AND a.status = 'Scheduled' AND a.doctor_id = ?
+                """, (tomorrow, self.current_user_id))
+            else:
+                # For admin/staff, show all appointments with doctor names
+                cursor.execute("""
+                    SELECT a.id, p.name, a.date, a.time, e.full_name 
+                    FROM appointments a 
+                    JOIN patients p ON a.patient_id = p.id 
+                    JOIN employees e ON a.doctor_id = e.id 
+                    WHERE a.date = ? AND a.status = 'Scheduled'
+                """, (tomorrow,))
+            
+            appointments = cursor.fetchall()
+            
+            if not appointments:
+                # Optionally inform the user if there are no upcoming appointments
+                return
+            
+            # Format reminders based on role
+            if self.current_role == "doctor":
+                reminders = [
+                    f"Appointment ID: {row[0]} with {row[1]} at {row[3]} on {row[2]}"
+                    for row in appointments
+                ]
+            else:
+                reminders = [
+                    f"Appointment ID: {row[0]} with {row[1]} (Doctor: {row[4]}) at {row[3]} on {row[2]}"
+                    for row in appointments
+                ]
+            
+            # Display reminders in a scrollable message box if there are many
+            if reminders:
+                reminder_message = "\n".join(reminders)
+                reminder_window = tk.Toplevel(self.root)
+                reminder_window.title("Appointment Reminders")
+                reminder_window.geometry("600x400")
+                
+                tk.Label(reminder_window, text="Upcoming Appointments for Tomorrow", font=("Arial", 12, "bold")).pack(pady=10)
+                
+                # Add scrollable text area
+                text_area = tk.Text(reminder_window, height=15, width=60, wrap="word")
+                text_area.insert(tk.END, reminder_message)
+                text_area.config(state="disabled")
+                text_area.pack(pady=10)
+                
+                scrollbar = ttk.Scrollbar(reminder_window, orient="vertical", command=text_area.yview)
+                scrollbar.pack(side="right", fill="y")
+                text_area.config(yscrollcommand=scrollbar.set)
+                
+                ttk.Button(reminder_window, text="Close", command=reminder_window.destroy).pack(pady=10)
+                
+                # Log the reminder check
+                self.log_activity(f"Checked appointment reminders for {tomorrow}")
+                
+        except sqlite3.Error as e:
+            messagebox.showerror("Database Error", f"Failed to fetch appointment reminders: {str(e)}")
 
     def patient_management(self):
         self.check_session_timeout()
@@ -697,7 +740,7 @@ class HealthcareSystem:
                         f"Doctor: Dr. {prescription[4]}, {prescription[5]}\n"
                     )
                     f.write(f"Date: {prescription[3]}\n")
-                    f.write(f"Medication: {prescription[0]}\n")
+                    f.write(f"Midicine: {prescription[0]}\n")
                     f.write(f"Dosage: {prescription[1]}\n")
                     f.write(f"Instructions: {prescription[2]}\n")
                 messagebox.showinfo(
@@ -1397,7 +1440,7 @@ class HealthcareSystem:
         def add_medication_row():
             row_frame = tk.Frame(medication_frame)
             row_frame.pack(fill=tk.X, pady=2)
-            tk.Label(row_frame, text="Medication Name").pack(side=tk.LEFT, padx=5)
+            tk.Label(row_frame, text="Medicine Name").pack(side=tk.LEFT, padx=5)
             med_name = tk.Entry(row_frame, width=20)
             med_name.pack(side=tk.LEFT, padx=5)
             tk.Label(row_frame, text="Dosage").pack(side=tk.LEFT, padx=5)
@@ -1421,7 +1464,7 @@ class HealthcareSystem:
 
         # Add initial medication row
         add_medication_row()
-        ttk.Button(frame, text="Add Another Medication", command=add_medication_row).grid(row=6, column=0, columnspan=3, pady=5)
+        ttk.Button(frame, text="Add Another Medicine", command=add_medication_row).grid(row=6, column=0, columnspan=3, pady=5)
 
         # Tests Recommended
         tk.Label(frame, text="Tests Recommended:", font=("Arial", 10)).grid(row=7, column=0, padx=5, pady=5)
@@ -1567,52 +1610,84 @@ class HealthcareSystem:
             diagnosis_text.pack(pady=5, padx=10, anchor="w")
 
             # Display medications
-            tk.Label(scrollable_frame, text="Medications:", font=("Arial", 10, "bold")).pack(pady=5, anchor="w")
-            medications = prescription[6].split("\n") if prescription[6] else []
+            tk.Label(
+                scrollable_frame, text="Medicine:",
+                font=("Arial", 10, "bold")
+            ).pack(pady=5, anchor="w")
+            medications = prescription[6].split("\n") if prescription[6] else [] # noqa
             if medications and medications[0]:
                 for med in medications:
                     try:
                         name, dosage, frequency, duration = med.split("|")
-                        tk.Label(scrollable_frame, 
-                                text=f"{name}: {dosage}, {frequency}, for {duration}", 
-                                font=("Arial", 10)).pack(pady=2, padx=20, anchor="w")
+                        tk.Label(
+                            scrollable_frame,
+                            text=f"{name}: {dosage}, {frequency}, for {duration}", # noqa
+                            font=("Arial", 10)
+                        ).pack(pady=2, padx=20, anchor="w")
                     except ValueError:
-                        tk.Label(scrollable_frame, 
-                                text=f"Invalid medication format: {med}", 
-                                font=("Arial", 10), fg="red").pack(pady=2, padx=20, anchor="w")
+                        tk.Label(
+                            scrollable_frame,
+                            text=f"Invalid medication format: {med}",
+                            font=("Arial", 10), fg="red"
+                        ).pack(pady=2, padx=20, anchor="w")
             else:
-                tk.Label(scrollable_frame, text="None", font=("Arial", 10)).pack(pady=2, padx=20, anchor="w")
+                tk.Label(
+                    scrollable_frame, text="None",
+                    font=("Arial", 10)
+                ).pack(pady=2, padx=20, anchor="w")
 
             # Display tests and advice
             tk.Label(scrollable_frame, text="Tests Recommended:", font=("Arial", 10, "bold")).pack(pady=5, anchor="w")
-            tests_text = tk.Text(scrollable_frame, height=3, width=60, wrap="word")
+            tests_text = tk.Text(
+                scrollable_frame, height=3, width=60, wrap="word"
+            )
             tests_text.insert(tk.END, prescription[11] or "None")  # Correct index for tests
             tests_text.config(state="disabled")
             tests_text.pack(pady=5, padx=10, anchor="w")
 
-            tk.Label(scrollable_frame, text="Doctor's Advice:", font=("Arial", 10, "bold")).pack(pady=5, anchor="w")
-            advice_text = tk.Text(scrollable_frame, height=3, width=60, wrap="word")
+            tk.Label(
+                scrollable_frame, text="Doctor's Advice:",
+                font=("Arial", 10, "bold")
+            ).pack(pady=5, anchor="w")
+            advice_text = tk.Text(
+                scrollable_frame, height=3, width=60, wrap="word"
+            )
             advice_text.insert(tk.END, prescription[10] or "None")  # Correct index for instructions
             advice_text.config(state="disabled")
             advice_text.pack(pady=5, padx=10, anchor="w")
 
-            tk.Label(scrollable_frame, text=f"Next Visit: {prescription[12] or 'Not specified'}", font=("Arial", 10)).pack(pady=5, anchor="w")
-            tk.Label(scrollable_frame, text=f"Doctor: Dr. {doctor_name}, {specialty}", font=("Arial", 10)).pack(pady=5, anchor="w")
+            tk.Label(
+                scrollable_frame,
+                text=f"Next Visit: {prescription[12] or 'Not specified'}",
+                font=("Arial", 10)
+            ).pack(pady=5, anchor="w")
+            tk.Label(
+                scrollable_frame,
+                text=f"Doctor: Dr. {doctor_name}, {specialty}",
+                font=("Arial", 10)
+            ).pack(pady=5, anchor="w")
 
             # Download prescription slip button
-            ttk.Button(scrollable_frame, text="Download Prescription Slip", 
-                    command=lambda: self.generate_prescription_slip(
-                        patient_id, patient_name, prescription[3], 
-                        prescription[4], prescription[5], 
-                        [m.split("|") for m in medications if m] if medications else [], 
-                        prescription[11], prescription[10], prescription[12]
-                    )).pack(pady=10)
+            ttk.Button(
+                scrollable_frame, text="Download Prescription Slip",
+                command=lambda: self.generate_prescription_slip(
+                    patient_id, patient_name, prescription[3],
+                    prescription[4], prescription[5],
+                    [m.split("|") for m in medications if m] if medications else [],  # noqa
+                    prescription[11], prescription[10], prescription[12])
+            ).pack(pady=10)
 
             # Close button
-            ttk.Button(scrollable_frame, text="Close", command=details_window.destroy).pack(pady=10)
+            ttk.Button(
+                scrollable_frame, text="Close",
+                command=details_window.destroy
+            ).pack(pady=10)
 
         except sqlite3.Error as e:
-            messagebox.showerror("Database Error", f"Failed to load prescription details: {str(e)}")
+            messagebox.showerror(
+                "Database Error",
+                f"Failed to load prescription details: {str(e)}"
+            )
             return
 
     def load_prescriptions(self):

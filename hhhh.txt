@@ -1,0 +1,18 @@
+Prescription Slip
+            ------------------
+            Patient Name: John Smith
+            Patient ID: 1
+            Appointment ID: N/A
+            Date: 2025-06-28 13:32:00
+            Symptoms: Monitor BP weekly
+            Diagnosis: Hypertension
+            Medications:
+            - Amlodipine: 5mg (1x/day), Duration: 30 days
+- Amoxicillin: 500mg (2x/day), Duration: 7 days
+- Metformin: 1000mg (2x/day), Duration: 90 days
+            Tests Recommended: Monitor BP weekly
+            Doctor's Advice: Monitor BP weekly
+            Follow-up Date: 2025-07-03
+
+            This is a computer-generated prescription. Please consult your healthcare provider for further details.
+            

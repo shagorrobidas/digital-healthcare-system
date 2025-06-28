@@ -1,0 +1,17 @@
+Prescription Slip
+            ------------------
+            Patient Name: Emily Johnson
+            Patient ID: 2
+            Appointment ID: N/A
+            Date: 2025-06-28 13:43:42
+            Symptoms: Shortness of breath, wheezing
+            Diagnosis: Asthma exacerbation
+            Medications:
+            - Albuterol: 2 puffs (Every 4-6 hours), Duration: 7 days
+- Albuterol: 2 puffs (Every 4-6 hours), Duration: 7 days
+            Tests Recommended: Prednisone|20mg|Once daily|5 days | Chest X-ray
+            Doctor's Advice: Pulmonary function test |
+            Follow-up Date: 2025-07-08
+
+            This is a computer-generated prescription. Please consult your healthcare provider for further details.
+            

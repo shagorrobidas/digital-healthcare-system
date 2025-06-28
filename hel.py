@@ -18,7 +18,7 @@ class HealthcareSystem:
         self.root.geometry("1000x800")
 
         # Database initialization
-        self.conn = sqlite3.connect('healthcare1.db')
+        self.conn = sqlite3.connect('healthcare.db')
         self.create_tables()
 
         # Login state
@@ -46,10 +46,23 @@ class HealthcareSystem:
         cursor.execute('''CREATE TABLE IF NOT EXISTS appointments
                         (id INTEGER PRIMARY KEY, patient_id INTEGER, doctor_id INTEGER, 
                             date TEXT, time TEXT, status TEXT)''') # noqa
+        
         # Prescriptions table
+
+        # cursor.execute('''CREATE TABLE IF NOT EXISTS prescriptions
+        #             (id INTEGER PRIMARY KEY, patient_id INTEGER, doctor_id INTEGER, 
+        #              appointment_id INTEGER, symptoms TEXT, diagnosis TEXT, medication TEXT, 
+        #              dosage TEXT, frequency TEXT, duration TEXT, instructions TEXT, 
+        #              tests TEXT, followup_date TEXT, lifestyle TEXT, warnings TEXT, 
+        #              date TEXT)''')
+    
         cursor.execute('''CREATE TABLE IF NOT EXISTS prescriptions
-                        (id INTEGER PRIMARY KEY, patient_id INTEGER, doctor_id INTEGER, 
-                            medication TEXT, dosage TEXT, instructions TEXT, date TEXT)''') # noqa
+                (id INTEGER PRIMARY KEY, patient_id INTEGER, doctor_id INTEGER, 
+                 appointment_id INTEGER, symptoms TEXT, diagnosis TEXT, medication TEXT, 
+                 dosage TEXT, frequency TEXT, duration TEXT, instructions TEXT, 
+                 tests TEXT, followup_date TEXT, lifestyle TEXT, warnings TEXT, 
+                 date TEXT)''')
+
         # Employees table (includes doctors)
         cursor.execute('''CREATE TABLE IF NOT EXISTS employees
                         (id INTEGER PRIMARY KEY, username TEXT UNIQUE, password TEXT, email TEXT, 
@@ -1178,639 +1191,475 @@ class HealthcareSystem:
         messagebox.showinfo("Success", "Appointment cancelled")
         self.load_doctor_appointments()
 
-    # def prescription_management(self):
-    #     self.check_session_timeout()
-    #     self.clear_window()
-    #     tk.Label(self.root, text="Prescription Management", font=("Arial", 14, "bold")).pack(pady=10)
-        
-    #     if self.current_role != "doctor":
-    #         tk.Label(self.root, text="Access restricted to doctors only.", font=("Arial", 12, "italic")).pack(pady=10)
-    #         # Show read-only prescription list
-    #         tree_frame = tk.Frame(self.root)
-    #         tree_frame.pack(pady=10)
-    #         tree = ttk.Treeview(tree_frame, columns=("ID", "Patient ID", "Patient Name", "Medication", "Dosage", "Doctor", "Date"), 
-    #                         show="headings")
-    #         tree.heading("ID", text="ID")
-    #         tree.heading("Patient ID", text="Patient ID")
-    #         tree.heading("Patient Name", text="Patient Name")
-    #         tree.heading("Medication", text="Medication")
-    #         tree.heading("Dosage", text="Dosage")
-    #         tree.heading("Doctor", text="Doctor")
-    #         tree.heading("Date", text="Date")
-    #         tree.pack(pady=5)
-            
-    #         cursor = self.conn.cursor()
-    #         cursor.execute(
-    #             """
-    #             SELECT p.id, p.patient_id, pat.name, p.medication, p.dosage, e.full_name, p.date 
-    #             FROM prescriptions p 
-    #             JOIN patients pat ON p.patient_id = pat.id 
-    #             JOIN employees e ON p.doctor_id = e.id
-    #             """
-    #         )
-    #         for row in cursor.fetchall():
-    #             tree.insert("", tk.END, values=row)
-            
-    #         ttk.Button(self.root, text="Back", command=self.create_main_menu).pack(pady=5)
-    #         return
-        
-    #     frame = tk.Frame(self.root)
-    #     frame.pack(pady=10)
-        
-    #     tk.Label(frame, text="Patient ID:", font=("Arial", 10)).grid(row=0, column=0, padx=5, pady=5)
-    #     patient_id_entry = tk.Entry(frame)
-    #     patient_id_entry.grid(row=0, column=1, padx=5, pady=5)
-        
-    #     patient_name_label = tk.Label(frame, text="Patient Name: ", font=("Arial", 10))
-    #     patient_name_label.grid(row=0, column=2, padx=5, pady=5)
-        
-    #     def validate_patient_id(*args):
-    #         patient_id = patient_id_entry.get()
-    #         if patient_id:
-    #             try:
-    #                 patient_id = int(patient_id)
-    #                 cursor = self.conn.cursor()
-    #                 cursor.execute("SELECT name FROM patients WHERE id = ?", (patient_id,))
-    #                 patient = cursor.fetchone()
-    #                 if patient:
-    #                     patient_name_label.config(text=f"Patient Name: {patient[0]}")
-    #                 else:
-    #                     patient_name_label.config(text="Patient Name: Invalid ID")
-    #             except ValueError:
-    #                 patient_name_label.config(text="Patient Name: Invalid ID")
-    #         else:
-    #             patient_name_label.config(text="Patient Name: ")
-        
-    #     patient_id_entry.bind("<KeyRelease>", validate_patient_id)
-    #     patient_id_entry.bind("<FocusOut>", validate_patient_id)
-        
-    #     # Medication dropdown
-    #     tk.Label(frame, text="Medication:", font=("Arial", 10)).grid(row=1, column=0, padx=5, pady=5)
-    #     medication_var = tk.StringVar()
-    #     cursor = self.conn.cursor()
-    #     cursor.execute("SELECT medication FROM pharmacy WHERE quantity > 0")
-    #     medications = [row[0] for row in cursor.fetchall()]
-    #     medication_dropdown = ttk.Combobox(frame, textvariable=medication_var, 
-    #                                     values=medications, state="readonly")
-    #     medication_dropdown.grid(row=1, column=1, padx=5, pady=5)
-        
-    #     tk.Label(frame, text="Dosage:", font=("Arial", 10)).grid(row=2, column=0, padx=5, pady=5)
-    #     dosage_entry = tk.Entry(frame)
-    #     dosage_entry.grid(row=2, column=1, padx=5, pady=5)
-        
-    #     tk.Label(frame, text="Instructions:", font=("Arial", 10)).grid(row=3, column=0, padx=5, pady=5)
-    #     instructions_entry = tk.Text(frame, height=5, width=50)
-    #     instructions_entry.grid(row=3, column=1, padx=5, pady=5)
-        
-    #     ttk.Button(frame, text="Add Prescription", command=lambda: self.add_prescription(
-    #         patient_id_entry.get(), medication_var.get(), dosage_entry.get(), 
-    #         instructions_entry.get("1.0", tk.END)
-    #     )).grid(row=4, column=0, columnspan=2, pady=10)
-        
-    #     # Prescription list
-    #     tree_frame = tk.Frame(self.root)
-    #     tree_frame.pack(pady=10)
-    #     tree = ttk.Treeview(tree_frame, columns=("ID", "Patient ID", "Patient Name", "Medication", "Dosage", "Doctor", "Date"), 
-    #                     show="headings")
-    #     tree.heading("ID", text="ID")
-    #     tree.heading("Patient ID", text="Patient ID")
-    #     tree.heading("Patient Name", text="Patient Name")
-    #     tree.heading("Medication", text="Medication")
-    #     tree.heading("Dosage", text="Dosage")
-    #     tree.heading("Doctor", text="Doctor")
-    #     tree.heading("Date", text="Date")
-    #     tree.pack(pady=5)
-        
-    #     cursor.execute(
-    #         """
-    #         SELECT p.id, p.patient_id, pat.name, p.medication, p.dosage, e.full_name, p.date 
-    #         FROM prescriptions p 
-    #         JOIN patients pat ON p.patient_id = pat.id 
-    #         JOIN employees e ON p.doctor_id = e.id
-    #         """
-    #     )
-    #     for row in cursor.fetchall():
-    #         tree.insert("", tk.END, values=row)
-        
-    #     ttk.Button(self.root, text="Back", command=self.create_main_menu).pack(pady=5)
-    
-    # def add_prescription(self, patient_id, medication, dosage, instructions):
-    #     if not all([patient_id, medication, dosage]):
-    #         messagebox.showerror("Error", "Please fill all required fields")
-    #         return
-        
-    #     cursor = self.conn.cursor()
-    #     cursor.execute("SELECT id FROM patients WHERE id = ?", (patient_id,))
-    #     if not cursor.fetchone():
-    #         messagebox.showerror("Error", "Invalid patient ID")
-    #         return
-        
-    #     # Check pharmacy stock
-    #     cursor.execute("SELECT quantity FROM pharmacy WHERE medication = ?", (medication,))
-    #     stock = cursor.fetchone()
-    #     if not stock or stock[0] <= 0:
-    #         messagebox.showerror("Error", f"No stock available for {medication}")
-    #         return
-        
-    #     cursor.execute("UPDATE pharmacy SET quantity = quantity - 1 WHERE medication = ?", (medication,))
-    #     cursor.execute("INSERT INTO prescriptions (patient_id, doctor_id, medication, dosage, instructions, date) VALUES (?, ?, ?, ?, ?, ?)",
-    #                   (patient_id, self.current_user_id if self.current_role == "doctor" else None, 
-    #                    medication, dosage, instructions.strip(), datetime.now().strftime("%Y-%m-%d")))
-    #     self.conn.commit()
-    #     self.log_activity(f"Added prescription for patient ID: {patient_id}, medication: {medication}")
-    #     messagebox.showinfo("Success", "Prescription added successfully")
-    #     self.prescription_management()
-
-    # def add_prescription(self, patient_id, medication, dosage, instructions):
-    #     if not all([patient_id, medication, dosage]):
-    #         messagebox.showerror("Error", "Please fill all required fields")
-    #         return
-        
-    #     # Validate patient ID and get name
-    #     try:
-    #         patient_id = int(patient_id)
-    #         cursor = self.conn.cursor()
-    #         cursor.execute("SELECT name FROM patients WHERE id = ?", (patient_id,))
-    #         patient = cursor.fetchone()
-    #         if not patient:
-    #             messagebox.showerror("Error", f"Invalid patient ID: {patient_id}")
-    #             return
-    #         patient_name = patient[0]
-    #     except ValueError:
-    #         messagebox.showerror("Error", "Invalid patient ID format")
-    #         return
-        
-    #     # Normalize medication name
-    #     medication = medication.strip().lower()
-        
-    #     # Debug: Log medication input
-    #     print(f"Attempting to prescribe medication: {medication}")
-        
-    #     # Start a database transaction
-    #     try:
-    #         # Check pharmacy stock
-    #         cursor.execute("SELECT id, quantity, threshold FROM pharmacy WHERE LOWER(medication) = ?", (medication,))
-    #         stock = cursor.fetchone()
-    #         if not stock:
-    #             print(f"Medication not found in pharmacy: {medication}")
-    #             cursor.execute("SELECT medication, quantity FROM pharmacy WHERE quantity > 0")
-    #             available_meds = cursor.fetchall()
-    #             if available_meds:
-    #                 meds_list = "\n".join([f"{med[0]} (Qty: {med[1]})" for med in available_meds])
-    #                 messagebox.showerror(
-    #                     "Error", 
-    #                     f"No stock available for {medication} for patient ID: {patient_id} ({patient_name}).\n"
-    #                     f"Available medications:\n{meds_list}"
-    #                 )
-    #             else:
-    #                 messagebox.showerror(
-    #                     "Error", 
-    #                     f"No stock available for {medication} for patient ID: {patient_id} ({patient_name}). "
-    #                     "No other medications available."
-    #                 )
-    #             return
-    #         elif stock[1] <= 0:
-    #             print(f"Medication out of stock: {medication}, Quantity: {stock[1]}")
-    #             cursor.execute("SELECT medication, quantity FROM pharmacy WHERE quantity > 0")
-    #             available_meds = cursor.fetchall()
-    #             if available_meds:
-    #                 meds_list = "\n".join([f"{med[0]} (Qty: {med[1]})" for med in available_meds])
-    #                 messagebox.showerror(
-    #                     "Error", 
-    #                     f"No stock available for {medication} for patient ID: {patient_id} ({patient_name}).\n"
-    #                     f"Available medications:\n{meds_list}"
-    #                 )
-    #             else:
-    #                 messagebox.showerror(
-    #                     "Error", 
-    #                     f"No stock available for {medication} for patient ID: {patient_id} ({patient_name}). "
-    #                     "No other medications available."
-    #                 )
-    #             return
-            
-    #         pharmacy_id, quantity, threshold = stock
-    #         print(f"Found medication: {medication}, Quantity: {quantity}, Threshold: {threshold}")
-            
-    #         # Add prescription and update stock
-    #         cursor.execute(
-    #             """
-    #             INSERT INTO prescriptions (patient_id, doctor_id, medication, dosage, instructions, date) 
-    #             VALUES (?, ?, ?, ?, ?, ?)
-    #             """,
-    #             (patient_id, self.current_user_id if self.current_role == "doctor" else None, 
-    #             medication, dosage, instructions.strip(), datetime.now().strftime("%Y-%m-%d"))
-    #         )
-    #         cursor.execute("UPDATE pharmacy SET quantity = quantity - 1 WHERE id = ?", (pharmacy_id,))
-            
-    #         # Verify stock update
-    #         cursor.execute("SELECT quantity FROM pharmacy WHERE id = ?", (pharmacy_id,))
-    #         new_quantity = cursor.fetchone()[0]
-    #         print(f"Updated stock for {medication}: New Quantity: {new_quantity}")
-            
-    #         # Check low stock
-    #         if new_quantity <= threshold:
-    #             messagebox.showwarning(
-    #                 "Low Stock Alert", 
-    #                 f"Stock for {medication} is now {new_quantity}, below threshold of {threshold} "
-    #                 f"for patient ID: {patient_id} ({patient_name})"
-    #             )
-            
-    #         self.conn.commit()
-    #         self.log_activity(f"Added prescription for patient ID: {patient_id} ({patient_name}), medication: {medication}")
-    #         messagebox.showinfo(
-    #             "Success", 
-    #             f"Prescription added successfully for patient ID: {patient_id} ({patient_name})"
-    #         )
-    #     except sqlite3.Error as e:
-    #         self.conn.rollback()
-    #         print(f"Database error: {str(e)}")
-    #         messagebox.showerror(
-    #             "Database Error", 
-    #             f"Failed to add prescription for patient ID: {patient_id} ({patient_name}): {str(e)}"
-    #         )
-    #         return
-        
-    #     self.prescription_management()
-
-    
     def prescription_management(self):
         self.check_session_timeout()
         self.clear_window()
         tk.Label(self.root, text="Prescription Management", font=("Arial", 14, "bold")).pack(pady=10)
-        
-        if self.current_role != "doctor":
-            tk.Label(self.root, text="Access restricted to doctors only.", font=("Arial", 12, "italic")).pack(pady=10)
-            tree_frame = tk.Frame(self.root)
-            tree_frame.pack(pady=10)
-            tree = ttk.Treeview(tree_frame, columns=("ID", "Patient ID", "Patient Name", "Age", "Symptoms", "Diagnosis", "Medication", "Dosage", "Frequency", "Duration", "Instructions", "Tests", "Doctor", "Date"), 
-                            show="headings")
-            tree.heading("ID", text="ID")
-            tree.heading("Patient ID", text="Patient ID")
-            tree.heading("Patient Name", text="Patient Name")
-            tree.heading("Age", text="Age")
-            tree.heading("Symptoms", text="Symptoms")
-            tree.heading("Diagnosis", text="Diagnosis")
-            tree.heading("Medication", text="Medication")
-            tree.heading("Dosage", text="Dosage")
-            tree.heading("Frequency", text="Frequency")
-            tree.heading("Duration", text="Duration")
-            tree.heading("Instructions", text="Instructions")
-            tree.heading("Tests", text="Tests")
-            tree.heading("Doctor", text="Doctor")
-            tree.heading("Date", text="Date")
-            tree.pack(pady=5)
-            
-            cursor = self.conn.cursor()
-            cursor.execute(
-                """
-                SELECT p.id, p.patient_id, pat.name, p.age, p.symptoms, p.diagnosis, p.medication, p.dosage, p.frequency, 
-                    p.duration, p.instructions, p.tests, e.full_name, p.date 
-                FROM prescriptions p 
-                JOIN patients pat ON p.patient_id = pat.id 
-                JOIN employees e ON p.doctor_id = e.id
-                """
-            )
-            for row in cursor.fetchall():
-                tree.insert("", tk.END, values=row)
-            
-            ttk.Button(self.root, text="Back", command=self.create_main_menu).pack(pady=5)
-            return
-        
+
+        # Frame for prescription creation
         frame = tk.Frame(self.root)
         frame.pack(pady=10)
-        
+
+        # Patient ID and Name
         tk.Label(frame, text="Patient ID:", font=("Arial", 10)).grid(row=0, column=0, padx=5, pady=5)
         patient_id_entry = tk.Entry(frame)
         patient_id_entry.grid(row=0, column=1, padx=5, pady=5)
-        
-        patient_details_label = tk.Label(frame, text="Patient Details: ", font=("Arial", 10))
-        patient_details_label.grid(row=0, column=2, padx=5, pady=5)
-        
+
+        # Label to display patient name
+        patient_name_label = tk.Label(frame, text="Patient Name: ", font=("Arial", 10))
+        patient_name_label.grid(row=0, column=2, padx=5, pady=5)
+
+        # Appointment ID
+        tk.Label(frame, text="Appointment ID (Optional):", font=("Arial", 10)).grid(row=1, column=0, padx=5, pady=5)
+        appointment_id_entry = tk.Entry(frame)
+        appointment_id_entry.grid(row=1, column=1, padx=5, pady=5)
+
+        # Function to validate patient ID and display name, and auto-select appointment
         def validate_patient_id(*args):
             patient_id = patient_id_entry.get()
+            appointment_id_entry.delete(0, tk.END)  # Clear previous appointment ID
             if patient_id:
                 try:
                     patient_id = int(patient_id)
                     cursor = self.conn.cursor()
-                    cursor.execute("SELECT name, age, gender, history FROM patients WHERE id = ?", (patient_id,))
+                    cursor.execute("SELECT name FROM patients WHERE id = ?", (patient_id,))
                     patient = cursor.fetchone()
                     if patient:
-                        name_entry.delete(0, tk.END)
-                        name_entry.insert(0, patient[0])
-                        age_entry.delete(0, tk.END)
-                        age_entry.insert(0, str(patient[1]) if patient[1] else "")
-                        patient_details_label.config(text=f"Patient Details: {patient[0]}, Age: {patient[1] or 'N/A'}, Gender: {patient[2] or 'N/A'}")
-                        history_text.config(state="normal")
-                        history_text.delete("1.0", tk.END)
-                        history_text.insert("1.0", patient[3] if patient[3] else "")
-                        history_text.config(state="disabled")
-                        cursor.execute("SELECT id, visit_date FROM appointments WHERE patient_id = ? AND status = 'Scheduled'", (patient_id,))
-                        appointments = [(row[0], row[1]) for row in cursor.fetchall()]
-                        appointment_dropdown["values"] = [f"ID: {app_id}, Date: {date}" for app_id, date in appointments]
-                        appointment_var.set("")
+                        patient_name_label.config(text=f"Patient Name: {patient[0]}")
+                        # Auto-select the latest scheduled appointment for the patient
+                        if self.current_role == "doctor":
+                            cursor.execute("""
+                                SELECT id FROM appointments 
+                                WHERE patient_id = ? AND doctor_id = ? AND status = 'Scheduled'
+                                ORDER BY date DESC, time DESC LIMIT 1
+                            """, (patient_id, self.current_user_id))
+                        else:
+                            cursor.execute("""
+                                SELECT id FROM appointments 
+                                WHERE patient_id = ? AND status = 'Scheduled'
+                                ORDER BY date DESC, time DESC LIMIT 1
+                            """, (patient_id,))
+                        appointment = cursor.fetchone()
+                        if appointment:
+                            appointment_id_entry.delete(0, tk.END)
+                            appointment_id_entry.insert(0, str(appointment[0]))
+                        else:
+                            appointment_id_entry.delete(0, tk.END)
+                            appointment_id_entry.insert(0, "")  # Clear if no appointment found
+                            if self.current_role == "doctor":
+                                patient_name_label.config(text=f"Patient Name: {patient[0]} (No scheduled appointments)")
                     else:
-                        patient_details_label.config(text="Patient Details: Invalid ID")
-                        name_entry.delete(0, tk.END)
-                        age_entry.delete(0, tk.END)
-                        history_text.config(state="normal")
-                        history_text.delete("1.0", tk.END)
-                        history_text.config(state="disabled")
-                        appointment_dropdown["values"] = []
-                        appointment_var.set("")
-                except ValueError:
-                    patient_details_label.config(text="Patient Details: Invalid ID")
+                        patient_name_label.config(text="Patient Name: Invalid ID")
+                        appointment_id_entry.delete(0, tk.END)
+                except (ValueError, TypeError):
+                    patient_name_label.config(text="Patient Name: Invalid ID")
+                    appointment_id_entry.delete(0, tk.END)
             else:
-                patient_details_label.config(text="Patient Details: ")
-        
+                patient_name_label.config(text="Patient Name: ")
+                appointment_id_entry.delete(0, tk.END)
+
+        # Bind validation to patient ID entry
         patient_id_entry.bind("<KeyRelease>", validate_patient_id)
         patient_id_entry.bind("<FocusOut>", validate_patient_id)
-        
-        tk.Label(frame, text="Patient Name:", font=("Arial", 10)).grid(row=1, column=0, padx=5, pady=5)
-        name_entry = tk.Entry(frame, state="readonly")
-        name_entry.grid(row=1, column=1, padx=5, pady=5)
-        
-        tk.Label(frame, text="Age:", font=("Arial", 10)).grid(row=2, column=0, padx=5, pady=5)
-        age_entry = tk.Entry(frame, state="readonly")
-        age_entry.grid(row=2, column=1, padx=5, pady=5)
-        
-        tk.Label(frame, text="Medical History:", font=("Arial", 10)).grid(row=3, column=0, padx=5, pady=5)
-        history_text = tk.Text(frame, height=3, width=50, font=("Arial", 10))
-        history_text.grid(row=3, column=1, padx=5, pady=5)
-        history_text.config(state="disabled")
-        
-        tk.Label(frame, text="Appointment:", font=("Arial", 10)).grid(row=4, column=0, padx=5, pady=5)
-        appointment_var = tk.StringVar()
-        appointment_dropdown = ttk.Combobox(frame, textvariable=appointment_var, state="readonly")
-        appointment_dropdown.grid(row=4, column=1, padx=5, pady=5)
-        
-        tk.Label(frame, text="Symptoms:", font=("Arial", 10)).grid(row=5, column=0, padx=5, pady=5)
-        symptoms_entry = tk.Entry(frame)
-        symptoms_entry.grid(row=5, column=1, padx=5, pady=5)
-        
-        tk.Label(frame, text="Diagnosis:", font=("Arial", 10)).grid(row=6, column=0, padx=5, pady=5)
-        diagnosis_entry = tk.Entry(frame)
-        diagnosis_entry.grid(row=6, column=1, padx=5, pady=5)
-        
-        tk.Label(frame, text="Medication:", font=("Arial", 10)).grid(row=7, column=0, padx=5, pady=5)
-        medication_var = tk.StringVar()
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT medication FROM pharmacy WHERE quantity > 0")
-        medications = [row[0] for row in cursor.fetchall()]
-        medication_dropdown = ttk.Combobox(frame, textvariable=medication_var, values=medications, state="readonly")
-        medication_dropdown.grid(row=7, column=1, padx=5, pady=5)
-        
-        tk.Label(frame, text="Medication Details:", font=("Arial", 10)).grid(row=8, column=0, padx=5, pady=5)
-        medication_details_entry = tk.Text(frame, height=5, width=50, font=("Arial", 10))
-        medication_details_entry.grid(row=8, column=1, padx=5, pady=5)
-        medication_details_entry.insert("1.0", "Dosage: \nFrequency: \nDuration: \nInstructions: ")
-        
-        tk.Label(frame, text="Diagnostic Tests:", font=("Arial", 10)).grid(row=9, column=0, padx=5, pady=5)
-        tests_entry = tk.Entry(frame)
-        tests_entry.grid(row=9, column=1, padx=5, pady=5)
-        
-        tk.Label(frame, text="Prescription Preview:", font=("Arial", 10)).grid(row=10, column=0, padx=5, pady=5)
-        prescription_output = tk.Text(frame, height=12, width=50, font=("Arial", 10))
-        prescription_output.grid(row=10, column=1, padx=5, pady=5)
-        prescription_output.config(state="disabled")
 
-        ttk.Button(self.root, text="Back", command=self.create_main_menu).pack(pady=5)
+        # Symptoms
+        tk.Label(frame, text="Symptoms:", font=("Arial", 10)).grid(row=2, column=0, padx=5, pady=5)
+        symptoms_entry = tk.Text(frame, height=3, width=50)
+        symptoms_entry.grid(row=2, column=1, columnspan=2, padx=5, pady=5)
+
+        # Diagnosis
+        tk.Label(frame, text="Diagnosis:", font=("Arial", 10)).grid(row=3, column=0, padx=5, pady=5)
+        diagnosis_entry = tk.Text(frame, height=3, width=50)
+        diagnosis_entry.grid(row=3, column=1, columnspan=2, padx=5, pady=5)
+
+        # Medications (dynamic entry fields)
+        tk.Label(frame, text="Medications:", font=("Arial", 10, "bold")).grid(row=4, column=0, columnspan=3, pady=5)
         
-        def generate_prescription():
-            patient_id = patient_id_entry.get()
-            patient_name = name_entry.get()
-            age = age_entry.get()
-            symptoms = symptoms_entry.get()
-            diagnosis = diagnosis_entry.get()
-            medication = medication_var.get()
-            details = medication_details_entry.get("1.0", tk.END).strip()
-            tests = tests_entry.get()
-            appointment = appointment_var.get()
-            
-            if not all([patient_id, patient_name, age, symptoms, diagnosis, medication, details]):
-                messagebox.showerror("Error", "Please fill all required fields")
-                return
-            
-            try:
-                patient_id = int(patient_id)
-                age = int(age)
-                if age <= 0:
-                    raise ValueError
-            except ValueError:
-                messagebox.showerror("Error", "Invalid patient ID or age")
-                return
-            
-            appointment_id = ""
-            if appointment:
-                try:
-                    appointment_id = int(appointment.split(",")[0].split(":")[1].strip())
-                except (ValueError, IndexError):
-                    messagebox.showerror("Error", "Invalid appointment selection")
-                    return
-            
-            dosage = frequency = duration = instructions = ""
-            for line in details.split("\n"):
-                if line.lower().startswith("dosage:"):
-                    dosage = line[7:].strip()
-                elif line.lower().startswith("frequency:"):
-                    frequency = line[10:].strip()
-                elif line.lower().startswith("duration:"):
-                    duration = line[9:].strip()
-                elif line.lower().startswith("instructions:"):
-                    instructions = line[12:].strip()
-            
-            if not all([dosage, frequency, duration]):
-                messagebox.showerror("Error", "Please provide dosage, frequency, and duration in medication details")
-                return
-            
-            prescription_text = (
-                f"Prescription\n"
-                f"Patient ID: {patient_id}\n"
-                f"Patient Name: {patient_name}\n"
-                f"Age: {age}\n"
-                f"Symptoms: {symptoms}\n"
-                f"Diagnosis: {diagnosis}\n"
-                f"Medication: {medication}\n"
-                f"Dosage: {dosage}\n"
-                f"Frequency: {frequency}\n"
-                f"Duration: {duration}\n"
-                f"Instructions: {instructions}\n"
-                f"Diagnostic Tests: {tests}\n"
-                f"Doctor: {self.current_user_name}\n"
-                f"Date: {datetime.now().strftime('%Y-%m-%d')}"
-            )
-            
-            prescription_output.config(state="normal")
-            prescription_output.delete("1.0", tk.END)
-            prescription_output.insert("1.0", prescription_text)
-            prescription_output.config(state="disabled")
-            
-            add_button.config(state="normal")
+        medication_frame = tk.Frame(frame)
+        medication_frame.grid(row=5, column=0, columnspan=3, pady=5)
         
-        ttk.Button(frame, text="Generate Prescription", command=generate_prescription).grid(row=11, column=0, padx=5, pady=5)
-        
-        add_button = ttk.Button(frame, text="Add Prescription", 
-                            command=lambda: self.add_prescription(
-                                patient_id_entry.get(), name_entry.get(), age_entry.get(),
-                                symptoms_entry.get(), diagnosis_entry.get(), medication_var.get(),
-                                medication_details_entry.get("1.0", tk.END), tests_entry.get(),
-                                appointment_var.get()
-                            ), state="disabled")
-        add_button.grid(row=11, column=1, padx=5, pady=5)
-        
+        medication_entries = []
+
+        def add_medication_row():
+            row_frame = tk.Frame(medication_frame)
+            row_frame.pack(fill=tk.X, pady=2)
+            tk.Label(row_frame, text="Medication Name").pack(side=tk.LEFT, padx=5)
+            med_name = tk.Entry(row_frame, width=20)
+            med_name.pack(side=tk.LEFT, padx=5)
+            tk.Label(row_frame, text="Dosage").pack(side=tk.LEFT, padx=5)
+            dosage = tk.Entry(row_frame, width=15)
+            dosage.pack(side=tk.LEFT, padx=5)
+            tk.Label(row_frame, text="Frequency").pack(side=tk.LEFT, padx=5)
+            frequency = tk.Entry(row_frame, width=15)
+            frequency.pack(side=tk.LEFT, padx=5)
+            tk.Label(row_frame, text="Duration").pack(side=tk.LEFT, padx=5)
+            duration = tk.Entry(row_frame, width=15)
+            duration.pack(side=tk.LEFT, padx=5)
+            medication_entries.append((row_frame, med_name, dosage, frequency, duration))
+            
+            # Add remove button for rows after the first one
+            if len(medication_entries) > 1:
+                ttk.Button(row_frame, text="Remove", command=lambda: remove_medication_row(row_frame)).pack(side=tk.LEFT, padx=5)
+
+        def remove_medication_row(row_frame):
+            medication_entries[:] = [(f, n, d, fr, du) for f, n, d, fr, du in medication_entries if f != row_frame]
+            row_frame.destroy()
+
+        # Add initial medication row
+        add_medication_row()
+        ttk.Button(frame, text="Add Another Medication", command=add_medication_row).grid(row=6, column=0, columnspan=3, pady=5)
+
+        # Tests Recommended
+        tk.Label(frame, text="Tests Recommended:", font=("Arial", 10)).grid(row=7, column=0, padx=5, pady=5)
+        tests_entry = tk.Text(frame, height=3, width=50)
+        tests_entry.grid(row=7, column=1, columnspan=2, padx=5, pady=5)
+
+        # Doctor's Advice
+        tk.Label(frame, text="Doctor's Advice:", font=("Arial", 10)).grid(row=8, column=0, padx=5, pady=5)
+        advice_entry = tk.Text(frame, height=3, width=50)
+        advice_entry.grid(row=8, column=1, columnspan=2, padx=5, pady=5)
+
+        # Follow-up Date
+        tk.Label(frame, text="Follow-up Date (YYYY-MM-DD):", font=("Arial", 10)).grid(row=9, column=0, padx=5, pady=5)
+        followup_entry = tk.Entry(frame)
+        followup_entry.grid(row=9, column=1, padx=5, pady=5)
+
+        # Save Prescription Button
+        ttk.Button(frame, text="Save Prescription", command=lambda: self.save_prescription(
+            patient_id_entry.get(),
+            appointment_id_entry.get(),
+            symptoms_entry.get("1.0", tk.END).strip(),
+            diagnosis_entry.get("1.0", tk.END).strip(),
+            medication_entries,
+            tests_entry.get("1.0", tk.END).strip(),
+            advice_entry.get("1.0", tk.END).strip(),
+            followup_entry.get()
+        )).grid(row=10, column=0, columnspan=3, pady=10)
+
+        # Prescription List
         tree_frame = tk.Frame(self.root)
         tree_frame.pack(pady=10)
-        tree = ttk.Treeview(tree_frame, columns=("ID", "Patient ID", "Patient Name", "Age", "Symptoms", "Diagnosis", "Medication", "Dosage", "Frequency", "Duration", "Instructions", "Tests", "Doctor", "Date"), 
-                        show="headings")
-        tree.heading("ID", text="ID")
-        tree.heading("Patient ID", text="Patient ID")
-        tree.heading("Patient Name", text="Patient Name")
-        tree.heading("Age", text="Age")
-        tree.heading("Symptoms", text="Symptoms")
-        tree.heading("Diagnosis", text="Diagnosis")
-        tree.heading("Medication", text="Medication")
-        tree.heading("Dosage", text="Dosage")
-        tree.heading("Frequency", text="Frequency")
-        tree.heading("Duration", text="Duration")
-        tree.heading("Instructions", text="Instructions")
-        tree.heading("Tests", text="Tests")
-        tree.heading("Doctor", text="Doctor")
-        tree.heading("Date", text="Date")
-        tree.pack(pady=5)
-        
-        cursor.execute(
-            """
-            SELECT p.id, p.patient_id, pat.name, p.age, p.symptoms, p.diagnosis, p.medication, p.dosage, p.frequency, 
-                p.duration, p.instructions, p.tests, e.full_name, p.date 
-            FROM prescriptions p 
-            JOIN patients pat ON p.patient_id = pat.id 
-            JOIN employees e ON p.doctor_id = e.id
-            """
-        )
-        for row in cursor.fetchall():
-            tree.insert("", tk.END, values=row)
-        
-        ttk.Button(self.root, text="Back", command=self.create_main_menu).pack(pady=5)
+        self.prescription_tree = ttk.Treeview(tree_frame, columns=("ID", "Patient ID", "Patient Name", "Date", "Diagnosis"), show="headings")
+        self.prescription_tree.heading("ID", text="ID")
+        self.prescription_tree.heading("Patient ID", text="Patient ID")
+        self.prescription_tree.heading("Patient Name", text="Patient Name")
+        self.prescription_tree.heading("Date", text="Date")
+        self.prescription_tree.heading("Diagnosis", text="Diagnosis")
+        self.prescription_tree.pack(pady=5)
 
-    def add_prescription(self, patient_id, patient_name, age, symptoms, diagnosis, medication, medication_details, tests, appointment):
-        if not all([patient_id, patient_name, age, symptoms, diagnosis, medication, medication_details]):
-            messagebox.showerror("Error", "Please fill all required fields")
+        ttk.Button(self.root, text="Back", command=self.create_main_menu).pack(pady=5)
+        # Load prescriptions
+        self.load_prescriptions()
+
+        # Double-click to view prescription details
+        self.prescription_tree.bind("<Double-1>", lambda e: self.view_prescription_details(self.prescription_tree))
+
+    
+    def view_prescription_details(self, tree):
+        """
+        Display detailed information about a selected prescription in a new window.
+        
+        Args:
+            tree (ttk.Treeview): The Treeview widget containing the prescription list.
+        """
+        selected = tree.selection()
+        if not selected:
+            messagebox.showerror("Error", "Please select a prescription")
             return
+        if len(selected) > 1:
+            messagebox.showerror("Error", "Please select only one prescription at a time")
+            return
+
+        prescription_id = tree.item(selected[0], "values")[0]
+        cursor = self.conn.cursor()
         
         try:
+            # Fetch prescription details with patient and doctor information
+            cursor.execute("""
+                SELECT p.*, pat.name, pat.dob, pat.gender, e.full_name, e.specialty
+                FROM prescriptions p
+                JOIN patients pat ON p.patient_id = pat.id
+                LEFT JOIN employees e ON p.doctor_id = e.id
+                WHERE p.id = ?
+            """, (prescription_id,))
+            prescription = cursor.fetchone()
+            
+            if not prescription:
+                messagebox.showerror("Error", "Prescription not found")
+                return
+
+            # Create details window
+            details_window = tk.Toplevel(self.root)
+            details_window.title(f"Prescription Details - ID {prescription_id}")
+            details_window.geometry("700x700")
+
+            # Add scrollable frame for content
+            canvas = tk.Canvas(details_window)
+            scrollbar = ttk.Scrollbar(details_window, orient="vertical", command=canvas.yview)
+            scrollable_frame = tk.Frame(canvas)
+
+            scrollable_frame.bind(
+                "<Configure>",
+                lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+            )
+
+            canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+            canvas.configure(yscrollcommand=scrollbar.set)
+
+            canvas.pack(side="left", fill="both", expand=True)
+            scrollbar.pack(side="right", fill="y")
+
+            # Title
+            tk.Label(scrollable_frame, text="Prescription Details", font=("Arial", 12, "bold")).pack(pady=10)
+
+            # Extract patient and doctor info
+            patient_name = prescription[12]
+            dob = prescription[13]
+            gender = prescription[14]
+            doctor_name = prescription[15] or "N/A"
+            specialty = prescription[16] or "N/A"
+
+            # Calculate age
+            try:
+                dob_date = datetime.strptime(dob, "%Y-%m-%d")
+                age = (datetime.now() - dob_date).days // 365
+            except (ValueError, TypeError):
+                age = "Unknown"
+
+            # Display patient info
+            tk.Label(scrollable_frame, text=f"Patient Name: {patient_name}", font=("Arial", 10)).pack(pady=5, anchor="w")
+            tk.Label(scrollable_frame, text=f"Patient ID: {prescription[1]}", font=("Arial", 10)).pack(pady=5, anchor="w")
+            tk.Label(scrollable_frame, text=f"Age: {age}", font=("Arial", 10)).pack(pady=5, anchor="w")
+            tk.Label(scrollable_frame, text=f"Gender: {gender}", font=("Arial", 10)).pack(pady=5, anchor="w")
+            tk.Label(scrollable_frame, text=f"Date: {prescription[13]}", font=("Arial", 10)).pack(pady=5, anchor="w")
+            tk.Label(scrollable_frame, text=f"Appointment ID: {prescription[3] or 'N/A'}", font=("Arial", 10)).pack(pady=5, anchor="w")
+
+            # Display symptoms
+            tk.Label(scrollable_frame, text="Symptoms:", font=("Arial", 10, "bold")).pack(pady=5, anchor="w")
+            symptoms_text = tk.Text(scrollable_frame, height=3, width=60, wrap="word")
+            symptoms_text.insert(tk.END, prescription[4] or "None")
+            symptoms_text.config(state="disabled")
+            symptoms_text.pack(pady=5, padx=10, anchor="w")
+
+            # Display diagnosis
+            tk.Label(scrollable_frame, text="Diagnosis:", font=("Arial", 10, "bold")).pack(pady=5, anchor="w")
+            diagnosis_text = tk.Text(scrollable_frame, height=3, width=60, wrap="word")
+            diagnosis_text.insert(tk.END, prescription[5] or "None")
+            diagnosis_text.config(state="disabled")
+            diagnosis_text.pack(pady=5, padx=10, anchor="w")
+
+            # Display medications
+            tk.Label(scrollable_frame, text="Medications:", font=("Arial", 10, "bold")).pack(pady=5, anchor="w")
+            medications = prescription[6].split("\n") if prescription[6] else []
+            if medications and medications[0]:
+                for med in medications:
+                    try:
+                        name, dosage, frequency, duration = med.split("|")
+                        tk.Label(scrollable_frame, 
+                                text=f"{name}: {dosage}, {frequency}, for {duration}", 
+                                font=("Arial", 10)).pack(pady=2, padx=20, anchor="w")
+                    except ValueError:
+                        tk.Label(scrollable_frame, 
+                                text=f"Invalid medication format: {med}", 
+                                font=("Arial", 10), fg="red").pack(pady=2, padx=20, anchor="w")
+            else:
+                tk.Label(scrollable_frame, text="None", font=("Arial", 10)).pack(pady=2, padx=20, anchor="w")
+
+            # Display tests and advice
+            tk.Label(scrollable_frame, text="Tests Recommended:", font=("Arial", 10, "bold")).pack(pady=5, anchor="w")
+            tests_text = tk.Text(scrollable_frame, height=3, width=60, wrap="word")
+            tests_text.insert(tk.END, prescription[10] or "None")
+            tests_text.config(state="disabled")
+            tests_text.pack(pady=5, padx=10, anchor="w")
+
+            tk.Label(scrollable_frame, text="Doctor's Advice:", font=("Arial", 10, "bold")).pack(pady=5, anchor="w")
+            advice_text = tk.Text(scrollable_frame, height=3, width=60, wrap="word")
+            advice_text.insert(tk.END, prescription[9] or "None")
+            advice_text.config(state="disabled")
+            advice_text.pack(pady=5, padx=10, anchor="w")
+
+            tk.Label(scrollable_frame, text=f"Next Visit: {prescription[11] or 'Not specified'}", font=("Arial", 10)).pack(pady=5, anchor="w")
+            tk.Label(scrollable_frame, text=f"Doctor: Dr. {doctor_name}, {specialty}", font=("Arial", 10)).pack(pady=5, anchor="w")
+
+            # Download prescription slip button
+            ttk.Button(scrollable_frame, text="Download Prescription Slip", 
+                    command=lambda: self.generate_prescription_slip(
+                        prescription[1], patient_name, prescription[3], 
+                        prescription[4], prescription[5], 
+                        [m.split("|") for m in medications if m] if medications else [], 
+                        prescription[10], prescription[9], prescription[11]
+                    )).pack(pady=10)
+
+            # Close button
+            ttk.Button(scrollable_frame, text="Close", command=details_window.destroy).pack(pady=10)
+
+        except sqlite3.Error as e:
+            messagebox.showerror("Database Error", f"Failed to load prescription details: {str(e)}")
+            return
+
+
+    def load_prescriptions(self):
+        """Load prescriptions into the treeview"""
+        for item in self.prescription_tree.get_children():
+            self.prescription_tree.delete(item)
+        
+        cursor = self.conn.cursor()
+        if self.current_role == "doctor":
+            cursor.execute("""
+                SELECT p.id, p.patient_id, pat.name, p.date, p.diagnosis
+                FROM prescriptions p
+                JOIN patients pat ON p.patient_id = pat.id
+                WHERE p.doctor_id = ?
+                ORDER BY p.date DESC
+            """, (self.current_user_id,))
+        else:
+            cursor.execute("""
+                SELECT p.id, p.patient_id, pat.name, p.date, p.diagnosis
+                FROM prescriptions p
+                JOIN patients pat ON p.patient_id = pat.id
+                ORDER BY p.date DESC
+            """)
+        for row in cursor.fetchall():
+            self.prescription_tree.insert("", tk.END, values=row)
+    
+    def save_prescription(self, patient_id, appointment_id, symptoms, diagnosis, medication_entries, tests, advice, followup):
+
+        if appointment_id:
+            try:
+                appointment_id = int(appointment_id.split("ID: ")[1].split(" ")[0])
+            except (ValueError, IndexError):
+                appointment_id = None
+
+        if not all([patient_id, symptoms, diagnosis]):
+            messagebox.showerror("Error", "Patient ID, symptoms, and diagnosis are required")
+            return
+
+        # Validate patient ID
+        try:
             patient_id = int(patient_id)
-            age = int(age)
-            if age <= 0:
-                raise ValueError
             cursor = self.conn.cursor()
             cursor.execute("SELECT name FROM patients WHERE id = ?", (patient_id,))
             patient = cursor.fetchone()
             if not patient:
-                messagebox.showerror("Error", f"Invalid patient ID: {patient_id}")
+                messagebox.showerror("Error", "Invalid patient ID")
                 return
-            if patient[0].lower() != patient_name.strip().lower():
-                messagebox.showerror("Error", f"Patient name does not match: {patient_name}")
-                return
+            patient_name = patient[0]
         except ValueError:
-            messagebox.showerror("Error", "Invalid patient ID or age format")
+            messagebox.showerror("Error", "Invalid patient ID format")
             return
-        
-        appointment_id = None
-        if appointment:
+
+        # Validate appointment ID (required for doctors)
+        if self.current_role == "doctor":
+            appointment_id = int(appointment_id) if appointment_id else None
+            cursor.execute("SELECT id, status FROM appointments WHERE id = ? AND patient_id = ? AND doctor_id = ? AND status = 'Scheduled'",
+                        (appointment_id, patient_id, self.current_user_id))
+        else:
+            # For non-doctors, appointment_id is optional
+            appointment_id = int(appointment_id) if appointment_id else None
+
+        # Validate follow-up date
+        if followup:
             try:
-                appointment_id = int(appointment.split(",")[0].split(":")[1].strip())
-                cursor.execute("SELECT status FROM appointments WHERE id = ? AND patient_id = ?", (appointment_id, patient_id))
-                if not cursor.fetchone():
-                    messagebox.showerror("Error", f"Invalid appointment ID: {appointment_id}")
+                followup_date = datetime.strptime(followup, "%Y-%m-%d")
+                if followup_date.date() < datetime.now().date():
+                    messagebox.showerror("Error", "Follow-up date must be in the future")
                     return
-            except (ValueError, IndexError):
-                messagebox.showerror("Error", "Invalid appointment selection")
+            except ValueError:
+                messagebox.showerror("Error", "Invalid follow-up date format (use YYYY-MM-DD)")
+                return
+
+        # Collect medications
+        medications = []
+        for _, med_name, dosage, frequency, duration in medication_entries:
+            med_name_val = med_name.get().strip()
+            dosage_val = dosage.get().strip()
+            frequency_val = frequency.get().strip()
+            duration_val = duration.get().strip()
+            if all([med_name_val, dosage_val, frequency_val, duration_val]):
+                medications.append((med_name_val, dosage_val, frequency_val, duration_val))
+            elif any([med_name_val, dosage_val, frequency_val, duration_val]):
+                messagebox.showerror("Error", "Incomplete medication entry detected. Fill all fields or remove the row.")
                 return
         
-        dosage = frequency = duration = instructions = ""
-        for line in medication_details.strip().split("\n"):
-            if line.lower().startswith("dosage:"):
-                dosage = line[7:].strip()
-            elif line.lower().startswith("frequency:"):
-                frequency = line[10:].strip()
-            elif line.lower().startswith("duration:"):
-                duration = line[9:].strip()
-            elif line.lower().startswith("instructions:"):
-                instructions = line[12:].strip()
-        
-        if not all([dosage, frequency, duration]):
-            messagebox.showerror("Error", "Please provide dosage, frequency, and duration in medication details")
+        if not medications:
+            messagebox.showerror("Error", "At least one complete medication entry is required")
             return
-        
-        medication = medication.strip().lower()
-        
-        print(f"Prescribing for Patient ID: {patient_id}, Name: {patient_name}, Medication: {medication}, Appointment ID: {appointment_id}")
-        
+
+        # Format medications for storage
+        medication_str = "\n".join([f"{m[0]}|{m[1]}|{m[2]}|{m[3]}" for m in medications])
+
         try:
-            cursor.execute("SELECT id, quantity, threshold FROM pharmacy WHERE LOWER(medication) = ?", (medication,))
-            stock = cursor.fetchone()
-            if not stock or stock[1] <= 0:
-                print(f"Medication not found or out of stock: {medication}")
-                cursor.execute("SELECT medication, quantity FROM pharmacy WHERE quantity > 0")
-                available_meds = cursor.fetchall()
-                if available_meds:
-                    meds_list = "\n".join([f"{med[0]} (Quantity: {med[1]})" for med in available_meds])
-                    messagebox.showerror(
-                        "Error", 
-                        f"No stock available for {medication} for patient ID: {patient_id} ({patient_name}).\n"
-                        f"Available medications:\n{meds_list}"
-                    )
-                else:
-                    messagebox.showerror(
-                        "Error", 
-                        f"No stock available for {medication} for patient ID: {patient_id} ({patient_name}). "
-                        "No other medications available."
-                    )
-                return
-            
-            pharmacy_id, quantity, threshold = stock
-            print(f"Found medication: {medication}, Quantity: {quantity}, Threshold: {threshold}")
-            
-            cursor.execute(
-                """
-                INSERT INTO prescriptions (patient_id, doctor_id, appointment_id, symptoms, diagnosis, medication, 
-                                        dosage, frequency, duration, instructions, tests, age, date) 
+            cursor.execute("""
+                INSERT INTO prescriptions (patient_id, doctor_id, appointment_id, symptoms, diagnosis, 
+                    medication, dosage, frequency, duration, instructions, tests, followup_date, date)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (patient_id, self.current_user_id, appointment_id, symptoms, diagnosis, medication, 
-                dosage, frequency, duration, instructions, tests, age, datetime.now().strftime("%Y-%m-%d"))
-            )
-            cursor.execute("UPDATE pharmacy SET quantity = quantity - 1 WHERE id = ?", (pharmacy_id,))
-            
-            cursor.execute("SELECT quantity FROM pharmacy WHERE id = ?", (pharmacy_id,))
-            new_quantity = cursor.fetchone()[0]
-            print(f"Updated stock for {medication}: New Quantity: {new_quantity}")
-            
-            if new_quantity <= threshold:
-                messagebox.showwarning(
-                    "Low Stock Alert", 
-                    f"Stock for {medication} is now {new_quantity}, below threshold of {threshold} "
-                    f"for patient ID: {patient_id} ({patient_name})"
-                )
-            
-            if appointment_id:
-                cursor.execute("UPDATE appointments SET status = 'Completed' WHERE id = ?", (appointment_id,))
-            
+            """, (
+                patient_id,
+                self.current_user_id if self.current_role == "doctor" else None,
+                appointment_id,
+                symptoms,
+                diagnosis,
+                medication_str,
+                ";".join([m[1] for m in medications]),
+                ";".join([m[2] for m in medications]),
+                ";".join([m[3] for m in medications]),
+                advice,
+                tests,
+                followup,
+                datetime.now().strftime("%Y-%m-%d")
+            ))
             self.conn.commit()
-            self.log_activity(f"Added prescription for patient ID: {patient_id} ({patient_name}), medication: {medication}")
-            messagebox.showinfo(
-                "Success", 
-                f"Prescription added successfully for patient ID: {patient_id} ({patient_name})"
-            )
+            self.log_activity(f"Created prescription for patient ID: {patient_id} ({patient_name})")
+            
+            # Generate prescription slip
+            self.generate_prescription_slip(patient_id, patient_name, appointment_id, symptoms, diagnosis, medications, tests, advice, followup)
+            
+            messagebox.showinfo("Success", "Prescription saved successfully")
+            self.load_prescriptions()  # Refresh the prescription list
+            self.prescription_management()  # Reload the screen
         except sqlite3.Error as e:
-            self.conn.rollback()
-            print(f"Database error: {str(e)}")
-            messagebox.showerror(
-                "Database Error", 
-                f"Failed to add prescription for patient ID: {patient_id} ({patient_name}): {str(e)}"
-            )
+            messagebox.showerror("Database Error", f"Failed to save prescription: {str(e)}")
+    
+    def generate_prescription_slip(self, patient_id, patient_name, appointment_id, symptoms, diagnosis, medications, tests, advice, followup):
+        if not patient_name or not medications:
+            messagebox.showerror("Error", "Patient name and medications are required")
             return
-        
-        self.prescription_management()
+
+        # Prepare medication details
+        med_details = "\n".join([f"- {m[0]}: {m[1]} ({m[2]}), Duration: {m[3]}" for m in medications])
+
+        # Generate content for the prescription slip
+        content = f"""Prescription Slip
+            ------------------
+            Patient Name: {patient_name}
+            Patient ID: {patient_id}
+            Appointment ID: {appointment_id if appointment_id else 'N/A'}
+            Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+            Symptoms: {symptoms if symptoms else 'Not specified'}
+            Diagnosis: {diagnosis if diagnosis else 'Not specified'}
+            Medications:
+            {med_details if med_details else 'None'}
+            Tests Recommended: {tests if tests else 'None'}
+            Doctor's Advice: {advice if advice else 'None'}
+            Follow-up Date: {followup if followup else 'Not specified'}
+
+            This is a computer-generated prescription. Please consult your healthcare provider for further details.
+            """
+
+        # Save to file
+        filename = filedialog.asksaveasfilename(
+            defaultextension=".txt",
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+            title="Save Prescription Slip"
+        )
+        if filename:
+            try:
+                with open(filename, "w", encoding="utf-8") as f:
+                    f.write(content)
+                messagebox.showinfo("Success", f"Prescription slip saved to {filename}")
+                self.log_activity(f"Generated prescription slip for patient ID: {patient_id}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save prescription slip: {str(e)}")
 
     def employee_management(self):
         self.check_session_timeout()

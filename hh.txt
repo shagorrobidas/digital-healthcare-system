@@ -1,0 +1,24 @@
+Dr. Md .Bipul Akanda
+License: LIC123456
+Healthcare System
+Contact: doctor@hard.com
+Date: 2025-06-27
+
+Patient: 
+Age/Gender: 23/Male
+Contact: 
+Address: 
+Diagnosis: 
+
+Rx:
+ —  —  — 
+
+Instructions:
+
+Tests: 
+Follow-up: As needed
+Advice:
+
+Warnings: None
+
+Signature: Md .Bipul Akanda

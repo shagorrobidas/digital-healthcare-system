@@ -321,9 +321,8 @@ class HealthcareSystem:
         frame.pack(pady=20)
 
         buttons = [
-            # ("Patient Management", self.patient_management),
-            # ("Appointment Scheduling", self.appointment_scheduling),
-            # ("Prescription Management", self.prescription_management)
+            # ("Change Password", self.change_password)
+            
         ]
 
         if self.current_role == "admin":
@@ -334,7 +333,8 @@ class HealthcareSystem:
                 ("View Doctor Info", self.view_doctor_info),
                 # ("View Patient Info", self.view_patient_info),
                 ("Activity Log", self.view_activity_log),
-                ("Doctor Schedules", self.doctor_schedule_management)
+                ("Doctor Schedules", self.doctor_schedule_management),
+                ("Change Password", self.change_password),
             ])
         elif self.current_role == "doctor":
             buttons.extend([
@@ -342,13 +342,15 @@ class HealthcareSystem:
                 ("Prescription Management", self.prescription_management),
                 ("View Doctor Info", self.view_doctor_info),
                 ("My Schedule", self.view_doctor_schedule),
-                ("Prescription Analytics", self.prescription_analytics)
+                ("Prescription Analytics", self.prescription_analytics),
+                ("Change Password", self.change_password),
             ])
         elif self.current_role == "staff":
             buttons.extend([
                 ("Patient Management", self.patient_management),
                 ("Appointment Scheduling", self.appointment_scheduling),
                 ("Pharmacy Management", self.pharmacy_management),
+                ("Change Password", self.change_password),
             ])
 
         for text, command in buttons:
@@ -359,6 +361,61 @@ class HealthcareSystem:
         ttk.Button(
             frame, text="Logout", command=self.create_login_screen, width=25
         ).pack(pady=20)
+
+    def change_password(self):
+        """Allow the current user to change their password"""
+        self.check_session_timeout()
+        self.clear_window()
+        tk.Label(self.root, text="Change Password", font=("Arial", 14, "bold")).pack(pady=10)
+
+        frame = tk.Frame(self.root)
+        frame.pack(pady=10)
+
+        tk.Label(frame, text="Current Password:", font=("Arial", 10)).grid(row=0, column=0, padx=5, pady=5)
+        current_password_entry = tk.Entry(frame, show="*")
+        current_password_entry.grid(row=0, column=1, padx=5, pady=5)
+
+        tk.Label(frame, text="New Password:", font=("Arial", 10)).grid(row=1, column=0, padx=5, pady=5)
+        new_password_entry = tk.Entry(frame, show="*")
+        new_password_entry.grid(row=1, column=1, padx=5, pady=5)
+
+        tk.Label(frame, text="Confirm New Password:", font=("Arial", 10)).grid(row=2, column=0, padx=5, pady=5)
+        confirm_password_entry = tk.Entry(frame, show="*")
+        confirm_password_entry.grid(row=2, column=1, padx=5, pady=5)
+
+        ttk.Button(frame, text="Change Password", command=lambda: self.process_change_password(
+            current_password_entry.get(), new_password_entry.get(), confirm_password_entry.get())).grid(row=3, column=0, columnspan=2, pady=10)
+
+        ttk.Button(self.root, text="Back", command=self.create_main_menu).pack(pady=10)
+
+    def process_change_password(self, current_password, new_password, confirm_password):
+        """Process the password change request"""
+        if not all([current_password, new_password, confirm_password]):
+            messagebox.showerror("Error", "Please fill all fields")
+            return
+
+        if new_password != confirm_password:
+            messagebox.showerror("Error", "New passwords do not match")
+            return
+
+        # Validate new password strength (optional)
+        # if not re.match(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$", new_password):
+        #     messagebox.showerror("Error", "New password must be at least 8 characters with uppercase, lowercase, number, and special character")
+            return
+
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT password FROM employees WHERE id = ? AND status = 'approved'", (self.current_user_id,))
+        user = cursor.fetchone()
+
+        if user and bcrypt.checkpw(current_password.encode('utf-8'), user[0]):
+            hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+            cursor.execute("UPDATE employees SET password = ? WHERE id = ?", (hashed_new_password, self.current_user_id))
+            self.conn.commit()
+            self.log_activity(f"Password changed for user: {self.current_user}")
+            messagebox.showinfo("Success", "Password changed successfully")
+            self.create_main_menu()
+        else:
+            messagebox.showerror("Error", "Current password is incorrect")
 
     def check_appointment_reminders(self):
         cursor = self.conn.cursor()
@@ -374,6 +431,8 @@ class HealthcareSystem:
             reminder = "\n".join([f"Reminder: Patient ID {row[0]} at {row[2]} on {row[1]}"  # noqa
                                 for row in appointments]) # noqa
             messagebox.showinfo("Appointment Reminders", reminder)
+    
+
 
     def patient_management(self):
         self.check_session_timeout()
@@ -666,7 +725,9 @@ class HealthcareSystem:
             return
 
         if not re.match(r"^\+?\d{10,15}$", emergency_contact):
-            messagebox.showerror("Error", "Invalid emergency contact number format")
+            messagebox.showerror(
+                "Error", "Invalid emergency contact number format"
+            )
             return
 
         cursor = self.conn.cursor()
@@ -1877,24 +1938,40 @@ class HealthcareSystem:
         cursor = self.conn.cursor()
         for item in selected:
             emp_id = tree.item(item, "values")[0]
-            cursor.execute("SELECT email FROM employees WHERE id = ?", (emp_id,))
-            email = cursor.fetchone()[0]
+            cursor.execute("SELECT username, email FROM employees WHERE id = ?", (emp_id,))
+            employee = cursor.fetchone()
+            if not employee:
+                messagebox.showerror("Error", f"Employee ID {emp_id} not found")
+                continue
+            
+            username, email = employee
             cursor.execute("UPDATE employees SET status = 'approved' WHERE id = ?", (emp_id,))
             
-            # Send email notification (configure your SMTP settings)
+            # Prepare email content
             try:
-                msg = MIMEText("Your account has been approved. You can now log in to the Healthcare System.")
+                # Create email message with username
+                msg = MIMEText(
+                    f"Dear {username},\n\n"
+                    "Your account has been approved. You can now log in to the Healthcare System using the following credentials:\n\n"
+                    f"Username: {username}\n\n"
+                    f"Password: admin123\n\n"
+                    "For security reasons, please use the password you set during registration or request a password reset if needed.\n\n"
+                    "Best regards,\nHealthcare System Team"
+                )
                 msg['Subject'] = 'Account Approval'
-                msg['From'] = 'your_email@example.com'  # Replace with your email
+                msg['From'] = 'sagorrobidush31@gmail.com'
                 msg['To'] = email
+                
+                # Send email
                 with smtplib.SMTP('smtp.gmail.com', 587) as server:
                     server.starttls()
-                    server.login('your_email@example.com', 'your_app_password')  # Replace with your email and app-specific password
+                    server.login('sagorrobidush31@gmail.com', 'nggv lyxr zsgu zcue')  # Use environment variables for credentials
                     server.send_message(msg)
             except Exception as e:
-                messagebox.showwarning("Email Error", f"Failed to send email: {str(e)}")
+                messagebox.showwarning("Email Error", f"Failed to send email to {email}: {str(e)}")
             
             self.log_activity(f"Approved employee ID: {emp_id}")
+        
         self.conn.commit()
         messagebox.showinfo("Success", "Selected employees approved")
         self.employee_management()

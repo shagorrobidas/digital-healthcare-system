@@ -18,7 +18,7 @@ class HealthcareSystem:
         self.root.geometry("1000x800")
 
         # Database initialization
-        self.conn = sqlite3.connect('healthcare.db')
+        self.conn = sqlite3.connect('healthcaredamo.db')
         self.create_tables()
 
         # Login state
@@ -46,22 +46,15 @@ class HealthcareSystem:
         cursor.execute('''CREATE TABLE IF NOT EXISTS appointments
                         (id INTEGER PRIMARY KEY, patient_id INTEGER, doctor_id INTEGER, 
                             date TEXT, time TEXT, status TEXT)''') # noqa
-        
-        # Prescriptions table
 
-        # cursor.execute('''CREATE TABLE IF NOT EXISTS prescriptions
-        #             (id INTEGER PRIMARY KEY, patient_id INTEGER, doctor_id INTEGER, 
-        #              appointment_id INTEGER, symptoms TEXT, diagnosis TEXT, medication TEXT, 
-        #              dosage TEXT, frequency TEXT, duration TEXT, instructions TEXT, 
-        #              tests TEXT, followup_date TEXT, lifestyle TEXT, warnings TEXT, 
-        #              date TEXT)''')
-    
+        # Prescriptions table
         cursor.execute('''CREATE TABLE IF NOT EXISTS prescriptions
-                (id INTEGER PRIMARY KEY, patient_id INTEGER, doctor_id INTEGER, 
-                 appointment_id INTEGER, symptoms TEXT, diagnosis TEXT, medication TEXT, 
-                 dosage TEXT, frequency TEXT, duration TEXT, instructions TEXT, 
-                 tests TEXT, followup_date TEXT, lifestyle TEXT, warnings TEXT, 
-                 date TEXT)''')
+                (id INTEGER PRIMARY KEY, patient_id INTEGER,
+                        doctor_id INTEGER, 
+                        appointment_id INTEGER, symptoms TEXT, diagnosis TEXT, medication TEXT, 
+                        dosage TEXT, frequency TEXT, duration TEXT, instructions TEXT, 
+                        tests TEXT, followup_date TEXT, lifestyle TEXT, warnings TEXT, 
+                        date TEXT)''') # noqa
 
         # Employees table (includes doctors)
         cursor.execute('''CREATE TABLE IF NOT EXISTS employees
@@ -69,7 +62,8 @@ class HealthcareSystem:
                             role TEXT, status TEXT, full_name TEXT, specialty TEXT, phone TEXT)''') # noqa
         # Pharmacy table (fixed typo)
         cursor.execute('''CREATE TABLE IF NOT EXISTS pharmacy   
-                        (id INTEGER PRIMARY KEY, medication TEXT, quantity INTEGER, threshold INTEGER)''')  # noqa
+                        (id INTEGER PRIMARY KEY, medication TEXT, quantity INTEGER, threshold INTEGER,
+                        expiry_date TEXT, status TEXT)''')  # noqa
         # Activity log table
         cursor.execute('''CREATE TABLE IF NOT EXISTS activity_log
                         (id INTEGER PRIMARY KEY, username TEXT, action TEXT, timestamp TEXT)''')    # noqa
@@ -95,17 +89,22 @@ class HealthcareSystem:
             self.conn.commit()
 
     def check_session_timeout(self):
-        if self.login_time and (time.time() - self.login_time) > 900:  # 15 minutes # noqa
-            messagebox.showwarning("Session Timeout", "Session has expired. Please login again.") # noqa
-            self.current_user = None
-            self.current_role = None
-            self.current_user_id = None
-            self.create_login_screen()
+        """Check if session has timed out and return False if expired"""
+        if self.login_time and (time.time() - self.login_time) > 1200:
+            messagebox.showwarning(
+                "Session Timeout", "Session has expired. Please login again."
+            )
+            self.logout()
+            return False
+        return True
 
     def create_login_screen(self):
         self.clear_window()
-        tk.Label(self.root, text="Digital Healthcare System", font=("Arial", 25, "bold")).pack(pady=20) # noqa
-
+        tk.Label(
+            self.root,
+            text="Digital Healthcare System",
+            font=("Arial", 25, "bold")
+        ).pack(pady=20)
         frame = tk.Frame(self.root)
         frame.pack(pady=10)
 
@@ -124,9 +123,9 @@ class HealthcareSystem:
         ttk.Button(frame, text="Login", command=self.login).grid(
             row=2, column=0, pady=10
         )
-        ttk.Button(frame, text="Register", command=self.create_registration_screen).grid(   # noqa
-            row=2, column=1, pady=10
-        )
+        ttk.Button(
+            frame, text="Register", command=self.create_registration_screen
+        ).grid(row=2, column=1, pady=10)
 
     def create_registration_screen(self):
         self.clear_window()
@@ -322,23 +321,34 @@ class HealthcareSystem:
         frame.pack(pady=20)
 
         buttons = [
-            ("Patient Management", self.patient_management),
-            ("Appointment Scheduling", self.appointment_scheduling),
-            ("Prescription Management", self.prescription_management)
+            # ("Patient Management", self.patient_management),
+            # ("Appointment Scheduling", self.appointment_scheduling),
+            # ("Prescription Management", self.prescription_management)
         ]
 
         if self.current_role == "admin":
             buttons.extend([
+                ("Patient Management", self.patient_management),
                 ("Employee Management", self.employee_management),
                 ("Pharmacy Management", self.pharmacy_management),
+                ("View Doctor Info", self.view_doctor_info),
+                # ("View Patient Info", self.view_patient_info),
                 ("Activity Log", self.view_activity_log),
                 ("Doctor Schedules", self.doctor_schedule_management)
             ])
         elif self.current_role == "doctor":
             buttons.extend([
+                ("Patient details and add", self.patient_management),
+                ("Prescription Management", self.prescription_management),
                 ("View Doctor Info", self.view_doctor_info),
                 ("My Schedule", self.view_doctor_schedule),
                 ("Prescription Analytics", self.prescription_analytics)
+            ])
+        elif self.current_role == "staff":
+            buttons.extend([
+                ("Patient Management", self.patient_management),
+                ("Appointment Scheduling", self.appointment_scheduling),
+                ("Pharmacy Management", self.pharmacy_management),
             ])
 
         for text, command in buttons:
@@ -499,7 +509,7 @@ class HealthcareSystem:
         tk.Label(
             details_window, text="Patient Details", font=("Arial", 12, "bold")
         ).pack(pady=10)
-        
+
         fields = ["ID", "Name", "DOB", "Contact", "Email", "Address", "Gender", "Blood Group", "Emergency Contact", "Medical History"]   # noqa
         for i, (field, value) in enumerate(zip(fields, patient)):
             tk.Label(details_window, text=f"{field}: {value}").pack(pady=5)
@@ -526,114 +536,143 @@ class HealthcareSystem:
         history_window = tk.Toplevel(self.root)
         history_window.title("Patient Appointment History")
         history_window.geometry("600x400")
-        
-        tk.Label(history_window, text="Appointment History", font=("Arial", 12, "bold")).pack(pady=10)
-        
-        tree = ttk.Treeview(history_window, columns=("ID", "Doctor", "Date", "Time", "Status"), show="headings")
+
+        tk.Label(
+            history_window,
+            text="Appointment History", font=("Arial", 12, "bold")
+        ).pack(pady=10)
+
+        tree = ttk.Treeview(
+            history_window,
+            columns=("ID", "Doctor", "Date", "Time", "Status"),
+            show="headings"
+        )
         tree.heading("ID", text="ID")
         tree.heading("Doctor", text="Doctor")
         tree.heading("Date", text="Date")
         tree.heading("Time", text="Time")
         tree.heading("Status", text="Status")
         tree.pack(pady=10)
-        
+
         cursor = self.conn.cursor()
-        cursor.execute("SELECT a.id, e.full_name, a.date, a.time, a.status FROM appointments a JOIN employees e ON a.doctor_id = e.id WHERE a.patient_id = ?",
-                      (patient_id,))
+        cursor.execute("SELECT a.id, e.full_name, a.date, a.time, a.status FROM appointments a JOIN employees e ON a.doctor_id = e.id WHERE a.patient_id = ?",(patient_id,)) # noqa
         for row in cursor.fetchall():
             tree.insert("", tk.END, values=row)
-        
-        ttk.Button(history_window, text="Close", command=history_window.destroy).pack(pady=5)
-    
+
+        ttk.Button(
+            history_window, text="Close", command=history_window.destroy
+        ).pack(pady=5)
+
     def view_patient_prescription_history(self, patient_id):
         history_window = tk.Toplevel(self.root)
         history_window.title("Patient Prescription History")
         history_window.geometry("600x400")
-        
-        tk.Label(history_window, text="Prescription History", font=("Arial", 12, "bold")).pack(pady=10)
-        
-        tree = ttk.Treeview(history_window, columns=("ID", "Medication", "Dosage", "Instructions", "Date"), show="headings")
+
+        tk.Label(
+            history_window,
+            text="Prescription History", font=("Arial", 12, "bold")
+        ).pack(pady=10)
+
+        tree = ttk.Treeview(
+            history_window,
+            columns=("ID", "Medication", "Dosage", "Instructions", "Date"),
+            show="headings"
+        )
         tree.heading("ID", text="ID")
         tree.heading("Medication", text="Medication")
         tree.heading("Dosage", text="Dosage")
         tree.heading("Instructions", text="Instructions")
         tree.heading("Date", text="Date")
         tree.pack(pady=10)
-        
+
         cursor = self.conn.cursor()
-        cursor.execute("SELECT id, medication, dosage, instructions, date FROM prescriptions WHERE patient_id = ?",
-                      (patient_id,))
+        cursor.execute("SELECT id, medication, dosage, instructions, date FROM prescriptions WHERE patient_id = ?",(patient_id,)) # noqa
         for row in cursor.fetchall():
             tree.insert("", tk.END, values=row)
-        
+
         # Download prescription option
-        tree.bind("<Double-1>", lambda e: self.download_prescription(tree, patient_id))
+        tree.bind("<Double-1>", lambda e: self.download_prescription(tree, patient_id)) # noqa
         
-        ttk.Button(history_window, text="Close", command=history_window.destroy).pack(pady=5)
-    
+        ttk.Button(
+            history_window, text="Close", command=history_window.destroy
+        ).pack(pady=5)
+
     def download_prescription(self, tree, patient_id):
         selected = tree.selection()
         if not selected:
             return
-        
+
         prescription_id = tree.item(selected[0], "values")[0]
         cursor = self.conn.cursor()
-        cursor.execute("SELECT p.medication, p.dosage, p.instructions, p.date, e.full_name, e.specialty, pat.name "
-                      "FROM prescriptions p "
-                      "JOIN employees e ON p.doctor_id = e.id "
-                      "JOIN patients pat ON p.patient_id = pat.id "
-                      "WHERE p.id = ?", (prescription_id,))
+        cursor.execute("SELECT p.medication, p.dosage, p.instructions, p.date, e.full_name, e.specialty, pat.name "     # noqa
+                        "FROM prescriptions p "         # noqa
+                        "JOIN employees e ON p.doctor_id = e.id "
+                        "JOIN patients pat ON p.patient_id = pat.id "
+                        "WHERE p.id = ?", (prescription_id,)
+        ) # noqa
         prescription = cursor.fetchone()
-        
+
         if prescription:
-            filename = filedialog.asksaveasfilename(defaultextension=".txt", 
-                                                  filetypes=[("Text files", "*.txt")])
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".txt", filetypes=[("Text files", "*.txt")]
+            )
             if filename:
                 with open(filename, "w") as f:
                     f.write("Prescription Details\n")
                     f.write(f"Patient: {prescription[6]}\n")
-                    f.write(f"Doctor: Dr. {prescription[4]}, {prescription[5]}\n")
+                    f.write(
+                        f"Doctor: Dr. {prescription[4]}, {prescription[5]}\n"
+                    )
                     f.write(f"Date: {prescription[3]}\n")
                     f.write(f"Medication: {prescription[0]}\n")
                     f.write(f"Dosage: {prescription[1]}\n")
                     f.write(f"Instructions: {prescription[2]}\n")
-                messagebox.showinfo("Success", f"Prescription saved to {filename}")
-                self.log_activity(f"Downloaded prescription ID {prescription_id} for patient ID {patient_id}")
-    
+                messagebox.showinfo(
+                    "Success", f"Prescription saved to {filename}"
+                )
+                self.log_activity(
+                    f"Downloaded prescription ID {prescription_id} for patient ID {patient_id}"     # noqa
+                )
+
     def search_patients(self, search_term):
         for item in self.patient_tree.get_children():
             self.patient_tree.delete(item)
-        
+
         cursor = self.conn.cursor()
-        query = "SELECT id, name, dob, contact, email, gender, blood_group FROM patients WHERE name LIKE ?"
+        query = "SELECT id, name, dob, contact, email, gender, blood_group FROM patients WHERE name LIKE ?"     # noqa
         cursor.execute(query, (f"%{search_term}%",))
         for row in cursor.fetchall():
             self.patient_tree.insert("", tk.END, values=row)
-    
-    def add_patient(self, name, dob, contact, email, address, gender, blood_group, emergency_contact, history):
-        if not all([name, dob, contact, email, address, gender, blood_group, emergency_contact]):
+
+    def add_patient(self, name, dob, contact, email, address, gender,
+                    blood_group, emergency_contact, history):
+        if not all([name, dob, contact, email, address,
+                    gender, blood_group, emergency_contact]):
             messagebox.showerror("Error", "Please fill all required fields")
             return
-        
+
         if not re.match(r"\d{4}-\d{2}-\d{2}", dob):
-            messagebox.showerror("Error", "Invalid DOB format (use YYYY-MM-DD)")
+            messagebox.showerror(
+                "Error", "Invalid DOB format (use YYYY-MM-DD)"
+            )
             return
-        
+
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
             messagebox.showerror("Error", "Invalid email format")
             return
-        
+
         if not re.match(r"^\+?\d{10,15}$", contact):
             messagebox.showerror("Error", "Invalid contact number format")
             return
-        
+
         if not re.match(r"^\+?\d{10,15}$", emergency_contact):
             messagebox.showerror("Error", "Invalid emergency contact number format")
             return
-        
+
         cursor = self.conn.cursor()
-        cursor.execute("INSERT INTO patients (name, dob, contact, email, address, gender, blood_group, emergency_contact, medical_history) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                      (name, dob, contact, email, address, gender, blood_group, emergency_contact, history.strip()))
+        cursor.execute("INSERT INTO patients (name, dob, contact, email, address, gender, blood_group, emergency_contact, medical_history) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", # noqa
+                        (name, dob, contact, email, address, gender,
+                            blood_group, emergency_contact, history.strip()))
         self.conn.commit()
         self.log_activity(f"Added patient: {name}")
         messagebox.showinfo("Success", "Patient added successfully")
@@ -1354,7 +1393,6 @@ class HealthcareSystem:
         # Double-click to view prescription details
         self.prescription_tree.bind("<Double-1>", lambda e: self.view_prescription_details(self.prescription_tree))
 
-    
     def view_prescription_details(self, tree):
         """
         Display detailed information about a selected prescription in a new window.
@@ -1376,7 +1414,9 @@ class HealthcareSystem:
         try:
             # Fetch prescription details with patient and doctor information
             cursor.execute("""
-                SELECT p.*, pat.name, pat.dob, pat.gender, e.full_name, e.specialty
+                SELECT p.id, p.patient_id, p.doctor_id, p.appointment_id, p.symptoms, p.diagnosis,
+                    p.medication, p.dosage, p.frequency, p.duration, p.instructions, p.tests,
+                    p.followup_date, p.date, pat.name, pat.dob, pat.gender, e.full_name, e.specialty
                 FROM prescriptions p
                 JOIN patients pat ON p.patient_id = pat.id
                 LEFT JOIN employees e ON p.doctor_id = e.id
@@ -1412,12 +1452,15 @@ class HealthcareSystem:
             # Title
             tk.Label(scrollable_frame, text="Prescription Details", font=("Arial", 12, "bold")).pack(pady=10)
 
-            # Extract patient and doctor info
-            patient_name = prescription[12]
-            dob = prescription[13]
-            gender = prescription[14]
-            doctor_name = prescription[15] or "N/A"
-            specialty = prescription[16] or "N/A"
+            # Extract data
+            patient_id = prescription[1]
+            patient_name = prescription[14]  # Correct index for patient name
+            dob = prescription[15]  # Correct index for DOB
+            gender = prescription[16]  # Correct index for gender
+            prescription_date = prescription[13]  # Correct index for prescription date
+            appointment_id = prescription[2] or "N/A"
+            doctor_name = prescription[17] or "N/A"
+            specialty = prescription[18] or "N/A"
 
             # Calculate age
             try:
@@ -1428,11 +1471,11 @@ class HealthcareSystem:
 
             # Display patient info
             tk.Label(scrollable_frame, text=f"Patient Name: {patient_name}", font=("Arial", 10)).pack(pady=5, anchor="w")
-            tk.Label(scrollable_frame, text=f"Patient ID: {prescription[1]}", font=("Arial", 10)).pack(pady=5, anchor="w")
+            tk.Label(scrollable_frame, text=f"Patient ID: {patient_id}", font=("Arial", 10)).pack(pady=5, anchor="w")
             tk.Label(scrollable_frame, text=f"Age: {age}", font=("Arial", 10)).pack(pady=5, anchor="w")
             tk.Label(scrollable_frame, text=f"Gender: {gender}", font=("Arial", 10)).pack(pady=5, anchor="w")
-            tk.Label(scrollable_frame, text=f"Date: {prescription[13]}", font=("Arial", 10)).pack(pady=5, anchor="w")
-            tk.Label(scrollable_frame, text=f"Appointment ID: {prescription[3] or 'N/A'}", font=("Arial", 10)).pack(pady=5, anchor="w")
+            tk.Label(scrollable_frame, text=f"Date: {prescription_date}", font=("Arial", 10)).pack(pady=5, anchor="w")
+            tk.Label(scrollable_frame, text=f"Appointment ID: {appointment_id}", font=("Arial", 10)).pack(pady=5, anchor="w")
 
             # Display symptoms
             tk.Label(scrollable_frame, text="Symptoms:", font=("Arial", 10, "bold")).pack(pady=5, anchor="w")
@@ -1468,26 +1511,26 @@ class HealthcareSystem:
             # Display tests and advice
             tk.Label(scrollable_frame, text="Tests Recommended:", font=("Arial", 10, "bold")).pack(pady=5, anchor="w")
             tests_text = tk.Text(scrollable_frame, height=3, width=60, wrap="word")
-            tests_text.insert(tk.END, prescription[10] or "None")
+            tests_text.insert(tk.END, prescription[11] or "None")  # Correct index for tests
             tests_text.config(state="disabled")
             tests_text.pack(pady=5, padx=10, anchor="w")
 
             tk.Label(scrollable_frame, text="Doctor's Advice:", font=("Arial", 10, "bold")).pack(pady=5, anchor="w")
             advice_text = tk.Text(scrollable_frame, height=3, width=60, wrap="word")
-            advice_text.insert(tk.END, prescription[9] or "None")
+            advice_text.insert(tk.END, prescription[10] or "None")  # Correct index for instructions
             advice_text.config(state="disabled")
             advice_text.pack(pady=5, padx=10, anchor="w")
 
-            tk.Label(scrollable_frame, text=f"Next Visit: {prescription[11] or 'Not specified'}", font=("Arial", 10)).pack(pady=5, anchor="w")
+            tk.Label(scrollable_frame, text=f"Next Visit: {prescription[12] or 'Not specified'}", font=("Arial", 10)).pack(pady=5, anchor="w")
             tk.Label(scrollable_frame, text=f"Doctor: Dr. {doctor_name}, {specialty}", font=("Arial", 10)).pack(pady=5, anchor="w")
 
             # Download prescription slip button
             ttk.Button(scrollable_frame, text="Download Prescription Slip", 
                     command=lambda: self.generate_prescription_slip(
-                        prescription[1], patient_name, prescription[3], 
+                        patient_id, patient_name, prescription[3], 
                         prescription[4], prescription[5], 
                         [m.split("|") for m in medications if m] if medications else [], 
-                        prescription[10], prescription[9], prescription[11]
+                        prescription[11], prescription[10], prescription[12]
                     )).pack(pady=10)
 
             # Close button
@@ -1496,7 +1539,6 @@ class HealthcareSystem:
         except sqlite3.Error as e:
             messagebox.showerror("Database Error", f"Failed to load prescription details: {str(e)}")
             return
-
 
     def load_prescriptions(self):
         """Load prescriptions into the treeview"""
@@ -1523,7 +1565,6 @@ class HealthcareSystem:
             self.prescription_tree.insert("", tk.END, values=row)
     
     def save_prescription(self, patient_id, appointment_id, symptoms, diagnosis, medication_entries, tests, advice, followup):
-
         if appointment_id:
             try:
                 appointment_id = int(appointment_id.split("ID: ")[1].split(" ")[0])
@@ -1554,7 +1595,6 @@ class HealthcareSystem:
             cursor.execute("SELECT id, status FROM appointments WHERE id = ? AND patient_id = ? AND doctor_id = ? AND status = 'Scheduled'",
                         (appointment_id, patient_id, self.current_user_id))
         else:
-            # For non-doctors, appointment_id is optional
             appointment_id = int(appointment_id) if appointment_id else None
 
         # Validate follow-up date
@@ -1611,15 +1651,96 @@ class HealthcareSystem:
             self.conn.commit()
             self.log_activity(f"Created prescription for patient ID: {patient_id} ({patient_name})")
             
-            # Generate prescription slip
-            self.generate_prescription_slip(patient_id, patient_name, appointment_id, symptoms, diagnosis, medications, tests, advice, followup)
+            # Generate LaTeX content for PDF
+            latex_content = r"""
+            \documentclass[a4paper,12pt]{article}
+            \usepackage[utf8]{inputenc}
+            \usepackage{geometry}
+            \geometry{margin=1in}
+            \usepackage{parskip}
+            \usepackage{enumitem}
+            \usepackage{titling}
+            \setlength{\parindent}{0pt}
+            \begin{document}
             
+            \begin{center}
+                \textbf{\Large Prescription Slip}
+                \vspace{0.5cm}
+                \hrulefill
+            \end{center}
+            
+            \vspace{0.5cm}
+            
+            \textbf{Patient Name:} """ + patient_name + r""" \\
+            \textbf{Patient ID:} """ + str(patient_id) + r""" \\
+            \textbf{Appointment ID:} """ + (str(appointment_id) if appointment_id else "N/A") + r""" \\
+            \textbf{Date:} """ + datetime.now().strftime("%Y-%m-%d") + r""" \\
+            
+            \vspace{0.5cm}
+            
+            \textbf{Symptoms:} \\
+            """ + (symptoms.replace('\n', ' ') if symptoms else "Not specified") + r""" \\
+            
+            \vspace{0.3cm}
+            
+            \textbf{Diagnosis:} \\
+            """ + (diagnosis.replace('\n', ' ') if diagnosis else "Not specified") + r""" \\
+            
+            \vspace{0.3cm}
+            
+            \textbf{Medications:}
+            \begin{itemize}[leftmargin=*]
+            """ + "".join([r"\item " + m[0] + ": " + m[1] + ", " + m[2] + ", Duration: " + m[3] for m in medications]) + r"""
+            \end{itemize}
+            
+            \vspace{0.3cm}
+            
+            \textbf{Tests Recommended:} \\
+            """ + (tests.replace('\n', ' ') if tests else "None") + r""" \\
+            
+            \vspace{0.3cm}
+            
+            \textbf{Doctor's Advice:} \\
+            """ + (advice.replace('\n', ' ') if advice else "None") + r""" \\
+            
+            \vspace{0.3cm}
+            
+            \textbf{Follow-up Date:} """ + (followup if followup else "Not specified") + r""" \\
+            
+            \vspace{0.5cm}
+            
+            \textit{This is a computer-generated prescription. Please consult your healthcare provider for further details.}
+            
+            \end{document}
+            """
+            
+            # Generate PDF filename using patient name and date
+            sanitized_patient_name = "".join(c for c in patient_name if c.isalnum() or c == " ").replace(" ", "_")
+            date_str = datetime.now().strftime("%Y%m%d")
+            default_filename = f"{sanitized_patient_name}_{date_str}.tex"
+            
+            # Save LaTeX file
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".tex",
+                initialfile=default_filename,
+                filetypes=[("LaTeX files", "*.tex"), ("All files", "*.*")],
+                title="Save Prescription Slip"
+            )
+            if filename:
+                try:
+                    with open(filename, "w", encoding="utf-8") as f:
+                        f.write(latex_content)
+                    messagebox.showinfo("Success", f"Prescription saved as LaTeX file: {filename}. Please compile it to generate a PDF.")
+                    self.log_activity(f"Generated LaTeX prescription slip for patient ID: {patient_id} ({patient_name})")
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to save LaTeX file: {str(e)}")
+            
+            self.load_prescriptions()
             messagebox.showinfo("Success", "Prescription saved successfully")
-            self.load_prescriptions()  # Refresh the prescription list
-            self.prescription_management()  # Reload the screen
+            self.prescription_management()
         except sqlite3.Error as e:
             messagebox.showerror("Database Error", f"Failed to save prescription: {str(e)}")
-    
+
     def generate_prescription_slip(self, patient_id, patient_name, appointment_id, symptoms, diagnosis, medications, tests, advice, followup):
         if not patient_name or not medications:
             messagebox.showerror("Error", "Patient name and medications are required")
@@ -1823,57 +1944,212 @@ class HealthcareSystem:
         except sqlite3.IntegrityError:
             messagebox.showerror("Error", "Username already exists")
     
+    
     def pharmacy_management(self):
         self.check_session_timeout()
         self.clear_window()
         tk.Label(self.root, text="Pharmacy Management", font=("Arial", 14, "bold")).pack(pady=10)
         
+        # Pharmacy Management Frame
         frame = tk.Frame(self.root)
         frame.pack(pady=10)
         
+        # Medication Entry
         tk.Label(frame, text="Medication:", font=("Arial", 10)).grid(row=0, column=0, padx=5, pady=5)
         medication_entry = tk.Entry(frame)
         medication_entry.grid(row=0, column=1, padx=5, pady=5)
         
+        # Quantity Entry
         tk.Label(frame, text="Quantity:", font=("Arial", 10)).grid(row=1, column=0, padx=5, pady=5)
         quantity_entry = tk.Entry(frame)
         quantity_entry.grid(row=1, column=1, padx=5, pady=5)
         
+        # Threshold Entry
         tk.Label(frame, text="Threshold:", font=("Arial", 10)).grid(row=2, column=0, padx=5, pady=5)
         threshold_entry = tk.Entry(frame)
         threshold_entry.grid(row=2, column=1, padx=5, pady=5)
         
-        ttk.Button(frame, text="Update Stock", command=lambda: self.update_pharmacy(
-            medication_entry.get(), quantity_entry.get(), threshold_entry.get()
-        )).grid(row=3, column=0, columnspan=2, pady=10)
+        # Expiry Date Entry
+        tk.Label(frame, text="Expiry Date (YYYY-MM-DD):", font=("Arial", 10)).grid(row=3, column=0, padx=5, pady=5)
+        expiry_entry = tk.Entry(frame)
+        expiry_entry.grid(row=3, column=1, padx=5, pady=5)
         
-        # Pharmacy inventory list
+        # Supplier Selection
+        tk.Label(frame, text="Supplier:", font=("Arial", 10)).grid(row=4, column=0, padx=5, pady=5)
+        supplier_var = tk.StringVar()
+        suppliers = ["Supplier A", "Supplier B", "Supplier C"]  # Example suppliers
+        supplier_dropdown = ttk.Combobox(frame, textvariable=supplier_var, values=suppliers)
+        supplier_dropdown.grid(row=4, column=1, padx=5, pady=5)
+        
+        # Action Buttons
+        action_frame = tk.Frame(frame)
+        action_frame.grid(row=5, column=0, columnspan=2, pady=10)
+        ttk.Button(action_frame, text="Update Stock", command=lambda: self.update_pharmacy(
+            medication_entry.get(), quantity_entry.get(), threshold_entry.get(), expiry_entry.get()
+        )).pack(side=tk.LEFT, padx=5)
+        ttk.Button(action_frame, text="Order Stock", command=lambda: self.order_stock_supplier(
+            medication_entry.get(), quantity_entry.get(), supplier_var.get()
+        )).pack(side=tk.LEFT, padx=5)
+        ttk.Button(action_frame, text="Return/Recall", command=lambda: self.return_recall_medication(
+            medication_entry.get()
+        )).pack(side=tk.LEFT, padx=5)
+        ttk.Button(action_frame, text="Sell Medicine", command=self.sell_medicine).pack(side=tk.LEFT, padx=5)
+        
+        # Pharmacy Inventory List
         tree_frame = tk.Frame(self.root)
         tree_frame.pack(pady=10)
-        tree = ttk.Treeview(tree_frame, columns=("ID", "Medication", "Quantity", "Threshold"), 
-                           show="headings")
-        tree.heading("ID", text="ID")
-        tree.heading("Medication", text="Medication")
-        tree.heading("Quantity", text="Quantity")
-        tree.heading("Threshold", text="Threshold")
-        tree.pack(pady=5)
+        self.pharmacy_tree = ttk.Treeview(tree_frame, 
+                                       columns=("ID", "Medication", "Quantity", "Threshold", "Expiry Date", "Status"), 
+                                       show="headings")
+        self.pharmacy_tree.heading("ID", text="ID")
+        self.pharmacy_tree.heading("Medication", text="Medication")
+        self.pharmacy_tree.heading("Quantity", text="Quantity")
+        self.pharmacy_tree.heading("Threshold", text="Threshold")
+        self.pharmacy_tree.heading("Expiry Date", text="Expiry Date")
+        self.pharmacy_tree.heading("Status", text="Status")
+        self.pharmacy_tree.pack(pady=5)
         
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT * FROM pharmacy")
-        for row in cursor.fetchall():
-            tree.insert("", tk.END, values=row)
+        # Bind double-click for editing
+        self.pharmacy_tree.bind("<Double-1>", lambda e: self.edit_pharmacy_item(
+            medication_entry, quantity_entry, threshold_entry, expiry_entry
+        ))
         
-        # Check for low stock
-        cursor.execute("SELECT medication, quantity, threshold FROM pharmacy WHERE quantity <= threshold")
-        low_stock = cursor.fetchall()
-        if low_stock:
-            alert = "\n".join([f"Low stock alert: {row[0]} (Qty: {row[1]}/{row[2]})" for row in low_stock])
-            messagebox.showwarning("Low Stock Alert", alert)
+        # Load pharmacy inventory
+        self.load_pharmacy_inventory()
+        
+        # Check for low stock and expired medications
+        self.check_stock_alerts()
         
         ttk.Button(self.root, text="Back", command=self.create_main_menu).pack(pady=5)
     
-    def update_pharmacy(self, medication, quantity, threshold):
-        if not all([medication, quantity, threshold]):
+    def sell_medicine(self):
+        """Open a new window to sell medicine from inventory"""
+        self.check_session_timeout()
+        self.clear_window()
+        tk.Label(self.root, text="Sell Medicine", font=("Arial", 14, "bold")).pack(pady=10)
+        
+        # Sell Medicine Frame
+        frame = tk.Frame(self.root)
+        frame.pack(pady=10)
+        
+        # Medication Selection
+        tk.Label(frame, text="Medication:", font=("Arial", 10)).grid(row=0, column=0, padx=5, pady=5)
+        medication_var = tk.StringVar()
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT medication FROM pharmacy WHERE status = 'Active'")
+        medications = [row[0] for row in cursor.fetchall()]
+        medication_dropdown = ttk.Combobox(frame, textvariable=medication_var, values=medications)
+        medication_dropdown.grid(row=0, column=1, padx=5, pady=5)
+        
+        # Quantity Entry
+        tk.Label(frame, text="Quantity to Sell:", font=("Arial", 10)).grid(row=1, column=0, padx=5, pady=5)
+        quantity_entry = tk.Entry(frame)
+        quantity_entry.grid(row=1, column=1, padx=5, pady=5)
+        
+        # Action Buttons
+        action_frame = tk.Frame(frame)
+        action_frame.grid(row=2, column=0, columnspan=2, pady=10)
+        ttk.Button(action_frame, text="Sell", command=lambda: self.process_sale(
+            medication_var.get(), quantity_entry.get()
+        )).pack(side=tk.LEFT, padx=5)
+        ttk.Button(action_frame, text="Back", command=self.pharmacy_management).pack(side=tk.LEFT, padx=5)
+        
+        # Pharmacy Inventory List
+        tree_frame = tk.Frame(self.root)
+        tree_frame.pack(pady=10)
+        self.pharmacy_tree = ttk.Treeview(tree_frame, 
+                                       columns=("ID", "Medication", "Quantity", "Threshold", "Expiry Date", "Status"), 
+                                       show="headings")
+        self.pharmacy_tree.heading("ID", text="ID")
+        self.pharmacy_tree.heading("Medication", text="Medication")
+        self.pharmacy_tree.heading("Quantity", text="Quantity")
+        self.pharmacy_tree.heading("Threshold", text="Threshold")
+        self.pharmacy_tree.heading("Expiry Date", text="Expiry Date")
+        self.pharmacy_tree.heading("Status", text="Status")
+        self.pharmacy_tree.pack(pady=5)
+        
+        # Load pharmacy inventory
+        self.load_pharmacy_inventory()
+    
+    def process_sale(self, medication, quantity):
+        """Process the sale of a medication"""
+        if not all([medication, quantity]):
+            messagebox.showerror("Error", "Please select a medication and enter a quantity")
+            return
+        
+        try:
+            quantity = int(quantity)
+            if quantity <= 0:
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("Error", "Quantity must be a positive number")
+            return
+        
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT quantity, expiry_date, status FROM pharmacy WHERE medication = ?", (medication,))
+        result = cursor.fetchone()
+        
+        if not result:
+            messagebox.showerror("Error", f"Medication {medication} not found in inventory")
+            return
+        
+        current_quantity, expiry_date, status = result
+        
+        if status != "Active":
+            messagebox.showerror("Error", f"Cannot sell {medication}: Status is {status}")
+            return
+        
+        if expiry_date and datetime.strptime(expiry_date, "%Y-%m-%d").date() <= datetime.now().date():
+            messagebox.showerror("Error", f"Cannot sell {medication}: Medication is expired")
+            return
+        
+        if quantity > current_quantity:
+            messagebox.showerror("Error", f"Insufficient stock for {medication}: Available {current_quantity}, Requested {quantity}")
+            return
+        
+        # Update quantity
+        new_quantity = current_quantity - quantity
+        cursor.execute("UPDATE pharmacy SET quantity = ? WHERE medication = ?", (new_quantity, medication))
+        self.conn.commit()
+        
+        # Log the sale
+        self.log_activity(f"Sold {quantity} units of {medication}")
+        messagebox.showinfo("Success", f"Sold {quantity} units of {medication}. New quantity: {new_quantity}")
+        
+        # Refresh inventory and check alerts
+        self.load_pharmacy_inventory()
+        self.check_stock_alerts()
+    
+    def load_pharmacy_inventory(self):
+        """Load pharmacy inventory into the treeview"""
+        for item in self.pharmacy_tree.get_children():
+            self.pharmacy_tree.delete(item)
+        
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT id, medication, quantity, threshold, expiry_date, status FROM pharmacy")
+        for row in cursor.fetchall():
+            self.pharmacy_tree.insert("", tk.END, values=row)
+    
+    def edit_pharmacy_item(self, medication_entry, quantity_entry, threshold_entry, expiry_entry):
+        """Populate entry fields with selected medication data for editing"""
+        selected = self.pharmacy_tree.selection()
+        if not selected:
+            messagebox.showerror("Error", "Please select a medication to edit")
+            return
+        
+        item = self.pharmacy_tree.item(selected[0], "values")
+        medication_entry.delete(0, tk.END)
+        medication_entry.insert(0, item[1])
+        quantity_entry.delete(0, tk.END)
+        quantity_entry.insert(0, item[2])
+        threshold_entry.delete(0, tk.END)
+        threshold_entry.insert(0, item[3])
+        expiry_entry.delete(0, tk.END)
+        expiry_entry.insert(0, item[4] if item[4] else "")
+    
+    def update_pharmacy(self, medication, quantity, threshold, expiry_date):
+        """Update or add pharmacy stock with expiry date"""
+        if not all([medication, quantity, threshold, expiry_date]):
             messagebox.showerror("Error", "Please fill all fields")
             return
         
@@ -1882,25 +2158,106 @@ class HealthcareSystem:
             threshold = int(threshold)
             if quantity < 0 or threshold < 0:
                 raise ValueError
+            datetime.strptime(expiry_date, "%Y-%m-%d")
         except ValueError:
-            messagebox.showerror("Error", "Quantity and threshold must be positive numbers")
+            messagebox.showerror("Error", "Quantity and threshold must be positive numbers, and expiry date must be in YYYY-MM-DD format")
             return
         
         cursor = self.conn.cursor()
         cursor.execute("SELECT id FROM pharmacy WHERE medication = ?", (medication,))
         existing = cursor.fetchone()
         
+        status = "Active"
+        if datetime.strptime(expiry_date, "%Y-%m-%d").date() <= datetime.now().date():
+            status = "Expired"
+        
         if existing:
-            cursor.execute("UPDATE pharmacy SET quantity = ?, threshold = ? WHERE medication = ?",
-                          (quantity, threshold, medication))
+            cursor.execute("UPDATE pharmacy SET quantity = ?, threshold = ?, expiry_date = ?, status = ? WHERE medication = ?",
+                          (quantity, threshold, expiry_date, status, medication))
         else:
-            cursor.execute("INSERT INTO pharmacy (medication, quantity, threshold) VALUES (?, ?, ?)",
-                          (medication, quantity, threshold))
+            cursor.execute("INSERT INTO pharmacy (medication, quantity, threshold, expiry_date, status) VALUES (?, ?, ?, ?, ?)",
+                          (medication, quantity, threshold, expiry_date, status))
         self.conn.commit()
-        self.log_activity(f"Updated pharmacy stock: {medication}")
+        self.log_activity(f"Updated pharmacy stock: {medication} (Qty: {quantity}, Expiry: {expiry_date})")
         messagebox.showinfo("Success", "Pharmacy stock updated")
-        self.pharmacy_management()
+        self.load_pharmacy_inventory()
+        self.check_stock_alerts()
     
+    def order_stock_supplier(self, medication, quantity, supplier):
+        """Order new stock from supplier"""
+        if not all([medication, quantity, supplier]):
+            messagebox.showerror("Error", "Please fill all fields")
+            return
+        
+        try:
+            quantity = int(quantity)
+            if quantity <= 0:
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("Error", "Quantity must be a positive number")
+            return
+        
+        # Simulate sending order to supplier
+        order_details = f"Order for {quantity} units of {medication} from {supplier} on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        
+        # Update pharmacy stock
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT id, quantity FROM pharmacy WHERE medication = ?", (medication,))
+        existing = cursor.fetchone()
+        
+        if existing:
+            new_quantity = existing[1] + quantity
+            cursor.execute("UPDATE pharmacy SET quantity = ? WHERE medication = ?",
+                          (new_quantity, medication))
+        else:
+            cursor.execute("INSERT INTO pharmacy (medication, quantity, threshold, expiry_date, status) VALUES (?, ?, ?, ?, ?)",
+                          (medication, quantity, 10, (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"), "Active"))
+        
+        self.conn.commit()
+        self.log_activity(f"Ordered stock: {medication} (Qty: {quantity}) from {supplier}")
+        messagebox.showinfo("Success", f"Order placed: {order_details}")
+        self.load_pharmacy_inventory()
+        self.check_stock_alerts()
+    
+    def return_recall_medication(self, medication):
+        """Handle medication returns or recalls"""
+        if not medication:
+            messagebox.showerror("Error", "Please enter a medication name")
+            return
+        
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT id, quantity, expiry_date FROM pharmacy WHERE medication = ?", (medication,))
+        existing = cursor.fetchone()
+        
+        if not existing:
+            messagebox.showerror("Error", f"Medication {medication} not found in inventory")
+            return
+        
+        if messagebox.askyesno("Confirm", f"Are you sure you want to return/recall {medication}?"):
+            cursor.execute("UPDATE pharmacy SET status = 'Recalled' WHERE medication = ?", (medication,))
+            self.conn.commit()
+            self.log_activity(f"Returned/Recalled medication: {medication}")
+            messagebox.showinfo("Success", f"Medication {medication} marked as returned/recalled")
+            self.load_pharmacy_inventory()
+            self.check_stock_alerts()
+    
+    def check_stock_alerts(self):
+        """Check for low stock and expired medications"""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT medication, quantity, threshold, expiry_date FROM pharmacy WHERE quantity <= threshold OR (expiry_date <= ? AND status != 'Recalled')",
+                      (datetime.now().strftime("%Y-%m-%d"),))
+        alerts = cursor.fetchall()
+        
+        if alerts:
+            alert_message = []
+            for medication, quantity, threshold, expiry_date in alerts:
+                if quantity <= threshold:
+                    alert_message.append(f"Low stock alert: {medication} (Qty: {quantity}/{threshold})")
+                if expiry_date and datetime.strptime(expiry_date, "%Y-%m-%d").date() <= datetime.now().date():
+                    alert_message.append(f"Expired medication: {medication} (Expiry: {expiry_date})")
+            if alert_message:
+                messagebox.showwarning("Stock Alerts", "\n".join(alert_message))
+
     def view_doctor_info(self):
         self.check_session_timeout()
         self.clear_window()

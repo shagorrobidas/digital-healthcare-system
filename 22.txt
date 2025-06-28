@@ -1,0 +1,17 @@
+Prescription Slip
+            ------------------
+            Patient Name: Emily Johnson
+            Patient ID: 2
+            Appointment ID: N/A
+            Date: 2025-06-28 14:24:07
+            Symptoms: Frequent urination, increased thirst
+            Diagnosis: Type 2 Diabetes
+            Medications:
+            - Metformin: 500mg (Twice daily), Duration: Ongoing
+- Lisinopril: 10mg (Once daily), Duration: Ongoing
+            Tests Recommended: HbA1c test
+            Doctor's Advice: Kidney function test
+            Follow-up Date: 2025-07-11
+
+            This is a computer-generated prescription. Please consult your healthcare provider for further details.
+            

@@ -1,5 +1,17 @@
 
 <h1 align="center"> Digital Healthcare System </h1>
+<p align="center">
+  <img src="https://github.com/nodeonline/nodejscart/actions/workflows/build.yml/badge.svg" alt="Github Action">
+  <a href="https://twitter.com/evershopjs">
+    <img alt="Twitter Follow" src="https://img.shields.io/twitter/follow/evershopjs?style=social">
+  </a>
+  <a href="https://discord.gg/GSzt7dt7RM">
+    <img src="https://img.shields.io/discord/757179260417867879?label=discord" alt="Discord">
+  </a>
+  <a href="https://opensource.org/licenses/GPL-3.0">
+    <img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License">
+  </a>
+</p>
 
 <h2>Overview</h2>
 <p align="left">The Digital Healthcare System is a comprehensive hospital management application built with Python and Tkinter for the GUI, SQLite for database storage, and various other libraries for additional functionality. This system provides modules for patient management, appointment scheduling, prescription management, pharmacy inventory, employee management, and activity logging.

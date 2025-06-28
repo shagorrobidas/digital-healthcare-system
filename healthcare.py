@@ -329,6 +329,7 @@ class HealthcareSystem:
             buttons.extend([
                 ("Patient Management", self.patient_management),
                 ("Employee Management", self.employee_management),
+                ("Appointment Scheduling", self.appointment_scheduling),
                 ("Pharmacy Management", self.pharmacy_management),
                 ("View Doctor Info", self.view_doctor_info),
                 # ("View Patient Info", self.view_patient_info),
@@ -401,7 +402,7 @@ class HealthcareSystem:
         # Validate new password strength (optional)
         # if not re.match(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$", new_password):
         #     messagebox.showerror("Error", "New password must be at least 8 characters with uppercase, lowercase, number, and special character")
-            return
+            # return
 
         cursor = self.conn.cursor()
         cursor.execute("SELECT password FROM employees WHERE id = ? AND status = 'approved'", (self.current_user_id,))
@@ -417,6 +418,21 @@ class HealthcareSystem:
         else:
             messagebox.showerror("Error", "Current password is incorrect")
 
+    # def check_appointment_reminders(self):
+    #     cursor = self.conn.cursor()
+    #     tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+    #     if self.current_role == "doctor":
+    #         cursor.execute("SELECT patient_id, date, time FROM appointments WHERE date = ? AND status = 'Scheduled' AND doctor_id = ?",      # noqa
+    #                         (tomorrow, self.current_user_id)) # noqa
+    #     else:
+    #         cursor.execute("SELECT patient_id, date, time, doctor_id FROM appointments WHERE date = ? AND status = 'Scheduled'", # noqa
+    #                         (tomorrow,)) # noqa
+    #     appointments = cursor.fetchall()
+    #     if appointments:
+    #         reminder = "\n".join([f"Reminder: Patient ID {row[0]} at {row[2]} on {row[1]}"  # noqa
+    #                             for row in appointments]) # noqa
+    #         messagebox.showinfo("Appointment Reminders", reminder)
+    
     def check_appointment_reminders(self):
         cursor = self.conn.cursor()
         tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
@@ -431,8 +447,6 @@ class HealthcareSystem:
             reminder = "\n".join([f"Reminder: Patient ID {row[0]} at {row[2]} on {row[1]}"  # noqa
                                 for row in appointments]) # noqa
             messagebox.showinfo("Appointment Reminders", reminder)
-    
-
 
     def patient_management(self):
         self.check_session_timeout()
